@@ -1,0 +1,8 @@
+
+[Desktop Entry]
+Name=wasta [Offline]
+Comment=Offline software updates or installs
+Exec=wasta-offline
+Type=Application
+Icon=wasta-offline
+Categories=GNOME;GTK;System;Utility;

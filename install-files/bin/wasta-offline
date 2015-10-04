@@ -1,0 +1,817 @@
+#!/bin/bash
+
+# ==============================================================================
+# wasta-offline
+#
+# wasta-offline modifies the current computer's "software sources" (or apt
+#   software repositories) to only use local repositories from a wasta-offline
+#   folder.
+#
+#   This wasta-offline folder can include both "local cache" and "apt-mirror"
+#   or "debmirror" repositories.
+#
+#   The "wasta-offline local cache" repository consists of software packages
+#   from another computer's local apt cache of installed software, which is
+#   loaded into the wasta-offline folder using "wasta-offline-setup".
+#
+#   "wasta-offline mirror" repositories are "full mirrors of all software
+#   available in corresponding internet repositories."  They are loaded into
+#   the wasta-offline folder using "apt-mirror" or "debmirror".  The defined 
+#   "base path" forapt-mirror needs to be set to "wasta-offline/apt-mirror", so
+#   that wasta-offline will know where to find these "wasta-offline apt-mirror
+#   repositories."  For example, then, a "wasta-offline apt-mirror repository"
+#   of the main wasta-Linux PPA would be in this folder:
+#
+#     wasta-offline/apt-mirror/mirror/ppa.launchpad.net/wasta-linux/dists/wasta
+#
+#   Once the apt sources are modified to only use these wasta-offline
+#   repositories, a zenity GUI window is kept open while a user performs any
+#   desired local software updates and installs with other utilities such as
+#   MintUpdate, Synaptic Package Manager, etc.
+#
+#   After all wasta-offline local software updates and installs are complete,
+#   and the GUI window is closed , the current computer's "software sources"
+#   (or apt software repositories) are restored to their original settings.
+#
+#   2014-03-18 rik: Initial script
+#   2014-03-25 rik: Included backup (and restore) of /var/lib/apt/lists
+#   2014-03-31 rik: "prune" the "pool folders" during apt-mirror repository 
+#       search. This gives a 100-fold performance improvement, 
+#       as the pool folders can be very big, but only contain the binaries
+#       and no Package listings.
+#   2014-04-05 rik: Add ability to select "precise-updates" 
+#       and "precise-security" to apt-mirror find command.
+#   2014-04-08 rik: Added "HYBRID" software mode, so normal internet 
+#       repositories can supplement wasta-offline folder.  If can't ping google,
+#       then will only have the one "OFFLINE" software mode as an option.
+#       Reworked Progress dialogs
+#   2014-04-14 rik: Added jcl modifications to regen Packages list if found
+#       to be outdated (.deb exists in the folder newer than the Packages file).
+#       This is optional so do not have to have dpkg-scanpackages installed,
+#       which would make it difficult to install wasta-offline manually on
+#       remote machines.
+#  2014-04-19 jcl: force su-mode for non-sudo users, cleanup obsolete code,
+#       add "sleep" time in progress loops to ensure background processes have
+#       started, and "sync" to flush any buffered writes, Added --multiversion
+#       flag to dpkg-scanpackages, and checked for 0-sized Packages.
+#  2014-04-21 jcl: necessary to have separate i386 and amd64 folders.
+#       Apparently APT isn't smart enough to NOT show amd64 software to a i386
+#       system.  Amd64 sometimes needs i386 packages so can't use --arch amd86
+#       for dpkg-scanpackages and for safety sake we don't want to make ALL i386
+#       packages available to amd64.  So keep separate folders for 32 and 64bit.
+#  2014-04-24 rik: $USER, $(logname), $(whoami), $(who) all not set when using
+#       gksu, so can't "find" the /media/$USER/wasta-offline folder.  Changing
+#       to just returning first /media/*/*/wasta-offline for now.
+#  2014-07-16 jcl: fixing some "restore original state" issues in case another
+#       app (like mintupdate) is re-creating the folder structures.
+#       -removed GKSU call from .desktop Exec= (didn't work for non-sudo users)
+#       -wait if /var/lib/apt/lists/ is locked
+#  2014-10-15 jcl: added support for mint Rebecca (17.1).
+#  2014-11-10 jcl: promoted to version 1.0
+#  2014-12-17 jcl: 1.0.1 reconfiguring backup and restore code. 
+#       Using Sam Smucker's code to support debmirror / repositories
+#       (create missing Packages, exclude .temp)
+#  2015-06-30 jcl: 1.0.2 support "Rafaela", offline non-distributables
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Check to ensure running as root
+# ------------------------------------------------------------------------------
+if [ $(id -u) -ne 0 ]
+then
+    # OUT will be <blank> if user not in sudo group
+    OUT=$(groups $(whoami) | grep "sudo")
+    if [ "$OUT" ]; then
+        # user has sudo permissions: use them to re-run the script
+        GKSU_MODE=sudo-mode
+    else
+        GKSU_MODE=su-mode
+    fi
+
+    gksu   --${GKSU_MODE}    --message \
+"<big><b>Authentication is required to run wasta [Offline]</b></big>
+
+You must be logged in as an Administrative user to use wasta [Offline]." \
+    wasta-offline "$@"
+
+    exit 0
+fi
+
+# pipefail will make $? contain the rightmost non-zero return, or 0 if all
+#   commands return 0.  Needed for "| tee" commands or else 0 will be the return
+#   of the commands even if the "real command" returned an error (since tee will
+#   return 0).
+set -o pipefail
+
+APT_SOURCES="/etc/apt/sources.list"
+APT_LISTS="/var/lib/apt/lists"
+
+# ------------------------------------------------------------------------------
+# Function: scriptExit
+#
+#   Ensure we restore sources.list and sources.list.d when we exit
+# ------------------------------------------------------------------------------
+scriptExit () {
+    # restore sources.list file if saved item found
+    if [ -e "${APT_SOURCES}.wasta" ];
+    then
+        echo | tee -a "$LOG"
+        echo "Restoring ${APT_SOURCES}" | tee -a "$LOG"
+        mv "${APT_SOURCES}.wasta" "${APT_SOURCES}"  | tee -a "$LOG"
+    fi
+    
+    # restore sources.list.d folder if saved item found
+    if [ -e "${APT_SOURCES}.d.wasta" ];
+    then
+        echo | tee -a "$LOG"
+        echo "Restoring ${APT_SOURCES}.d folder" | tee -a "$LOG"
+        rsync -av --delete --exclude partial \
+             ${APT_SOURCES}.d.wasta/ \
+             ${APT_SOURCES}.d/  | tee -a "$LOG"
+        rm -fr ${APT_SOURCES}.d.wasta  | tee -a "$LOG"
+    fi
+    
+    # restore apt lists if saved item found
+    if [ -e "${APT_LISTS}.wasta" ];
+    then
+        echo | tee -a "$LOG"
+        echo "Restoring ${APT_LISTS}" | tee -a "$LOG"
+        
+        #check if something (like mintupdate) is updating the lists.
+        [ -e ${APT_LISTS}/lock ] && \
+        while [ $(fuser ${APT_LISTS}/lock) ]; do
+            sleep 1
+        done | zenity --progress \
+                --title="wasta [Offline]: wait for apt list lock to finish" \
+                --pulsate --auto-close --width=500 --height=100 \
+                --no-cancel \
+                --window-icon=info \
+                --text="Another program is accessing the software lists...
+
+Is mintupdate or synaptic running?
+Waiting for it to finish..."
+
+        rsync -av --delete --exclude partial \
+            ${APT_LISTS}.wasta/ \
+            ${APT_LISTS}/  | tee -a "$LOG"
+        rm -fr ${APT_LISTS}.wasta  | tee -a "$LOG"
+        # NOT performing apt-get update, as this could possibly take a long
+        #   time: effectively returning to how it was regarding package lists.
+    fi
+    
+    # Remove "_wasta-offline_" files from $APT_LISTS
+    rm -f "${APT_LISTS}/*_wasta-offline_*"
+    
+    echo | tee -a "$LOG"
+    echo "-----------------------------------------------------------" | tee -a "$LOG"
+    echo $(date +%T) $HOST "wasta-offline complete" | tee -a "$LOG"
+    echo "===========================================================" | tee -a "$LOG"
+    
+    exit 0
+}
+
+# ------------------------------------------------------------------------------
+# Initial Setup
+# ------------------------------------------------------------------------------
+
+LOG_DATE=$(date +%F-%H-%M)
+HOST=$(uname -n)
+
+# Need to store up log messages, since log location not set yet.
+MSG=\
+"===========================================================
+"
+MSG+=$(date +%T)
+MSG+=" $HOST wasta-offline started"
+MSG+="
+-----------------------------------------------------------"
+
+# ------------------------------------------------------------------------------
+# Set wasta-offline archive location
+# ------------------------------------------------------------------------------
+
+WO_LOC=""
+
+# If passed parameter, attempt to use it
+if [ -n "$1" ]
+then
+    PARAM="$1"
+    MSG+="
+
+Passed Parameter: $PARAM"
+    
+    # trim off trailing whitespace:
+    PARAM=$(echo "${PARAM}" | sed 's@ *$@@')
+    # trim off trailing "/"
+    PARAM=$(echo "${PARAM}" | sed 's@/*$@@')
+    
+    if [[ "$PARAM" == *"wasta-offline" ]] && [[ -e "$PARAM" ]]
+    then
+        # valid location, use it (if not valid will be prompted below)
+        WO_LOC="$PARAM"
+        MSG+="
+
+wasta-offline location set from passed parameter: $WO_LOC"
+    else
+        MSG+="
+
+Parameter invalid, wasta-offline location not set: $PARAM"
+    fi
+fi
+
+# if WO_LOC not set, give initial prompt and then prompt for folder
+if [[ -z "$WO_LOC" ]]
+then
+    zenity --question --no-wrap --height=200 --width=500 \
+        --title="wasta [Offline]" \
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --text="<b>Use wasta [Offline] for local software
+updates or installs on this computer?</b>
+
+<i>You will be prompted to locate an existing
+'wasta-offline' folder.</i>\n
+
+<small><i><b>NOTE:</b> If you want to add a computer's local software
+cache to a 'wasta-offline' folder, instead use
+'wasta-offline-setup'.</i></small>"
+    if [ "$?" -ne 0 ]
+    then
+        # User didn't say yes: exit
+        scriptExit
+    fi
+    
+    # get series:
+    START_FOLDER=""
+    SERIES=$(lsb_release -sc)
+    
+    # first, look for wasta-offline folder under /media/$USER (12.10 and newer)
+    # 2014-04-24 rik: $USER, $(logname), $(whoami), $(who) all not working when
+    #   launch with gksu.  So, just setting to /media/*/*/wasta-offline :-(
+    START_FOLDER=$(ls -1d /media/*/*/wasta-offline 2> /dev/null | head -1)
+    
+    if [ -z "$START_FOLDER" ]
+    then
+        # second, look for wasta-offline folder under /media (12.04 and older)
+        START_FOLDER=$(ls -1d /media/*/wasta-offline 2>/dev/null | head -1)
+    fi
+    
+    if [ -z "$START_FOLDER" ]
+    then
+        # no wasta-offline, try /media/$USER (12.10 and newer)
+        # 2014-04-24 rik: this also won't work ($USER), but will just ignore for
+        #   now, and "/media" will be selected below.
+        START_FOLDER=$(ls -1d /media/$USER 2>/dev/null | head -1)
+    fi
+    
+    if [ -z "$START_FOLDER" ]
+    then
+        # no /media/$USER, try /media
+        START_FOLDER=$(ls -1d /media 2>/dev/null | head -1)
+    fi
+    
+   if [ -z "$START_FOLDER" ]
+    then
+        # no /media folder, so start in /
+        START_FOLDER="/"
+    fi
+
+    MSG+="
+
+start folder: $START_FOLDER"
+    
+    FOLDER_SEL=$(zenity --file-selection \
+        --directory --filename="$START_FOLDER" \
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --title="Select a 'wasta-offline' Folder")
+    if [[ "$FOLDER_SEL" == *"wasta-offline" ]]
+    then
+        # valid wasta-offline folder
+        WO_LOC="$FOLDER_SEL"
+
+        MSG+="
+
+wasta-offline location: $WO_LOC"
+    else
+        zenity --error --no-wrap --height=200 \
+          --title="wasta [Offline]: Exiting" \
+          --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+          --text="<b>Selected Folder:</b> $FOLDER_SEL\n
+This folder is not a <b>'wasta-offline'</b> folder.\n
+wasta [Offline] will now exit.\n\n"
+        scriptExit
+    fi
+fi
+
+#If still don't have wasta-offline folder, exit
+if [[ -z "$WO_LOC" ]]
+then
+    zenity --error --no-wrap --height=200 \
+        --title="wasta [Offline]: Exiting" \
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --text "No <b>'wasta-offline'<b> folder has been set.\n
+wasta [Offline] will now exit.\n\n"
+    scriptExit
+fi
+
+# FINALLY have directory, so set log location
+mkdir -p "$WO_LOC/log/wasta-offline"
+LOG="$WO_LOC/log/wasta-offline/$LOG_DATE-$HOST.log"
+
+echo "$MSG" | tee -a "$LOG"
+
+# ------------------------------------------------------------------------------
+# Main Processing
+# ------------------------------------------------------------------------------
+
+# MAKE BACKUPS!!!!
+if [ -e "${APT_SOURCES}.wasta" ]; then
+  echo | tee -a "$LOG"
+  echo "Previous backup found - rolling back ${APT_SOURCES}" | tee -a "$LOG"
+  rsync "${APT_SOURCES}.wasta" "${APT_SOURCES}"
+elif [ -e "${APT_SOURCES}" ]; then
+  echo | tee -a "$LOG"
+  echo "Backing up current ${APT_SOURCES}" | tee -a "$LOG"
+  rsync "${APT_SOURCES}" "${APT_SOURCES}.wasta"
+else
+  echo | tee -a "$LOG"
+  echo "WARNING: ${APT_SOURCES} not found" | tee -a "$LOG"
+  #should never happen.  
+  #Perhaps "touch ${APT_SOURCES}.wasta" so we restore nothing?
+fi    
+
+
+NET_CHECK=$(ping -c1 "www.google.com" 2> /dev/null)
+if [ $? == 0 ]
+then
+    #network found, give 2 list choices
+    LIST=("TRUE"  "OFFLINE"  "OFFLINE ONLY:
+        Only software from the wasta-offline
+        folder may be updated or installed.
+
+*** NO INTERNET CONNECTION WILL BE USED ***
+"  "FALSE"  "HYBRID"  "OFFLINE AND INTERNET:
+        Selected software updates or installs that
+        are not found in the wasta-offline folder
+        will be downloaded from the internet.
+        
+*** INTERNET DOWNLOADS MAY BE SLOW or EXPENSIVE ***")
+else
+    #network not found, only 1 choice
+    LIST=("TRUE"  "OFFLINE"  "OFFLINE ONLY:
+        Only software from the wasta-offline
+        folder may be updated or installed.")
+fi
+
+MODE=""
+MODE=$(zenity --list --title="wasta [Offline]" --width=500 --height=550 \
+    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+    --text="<b>wasta [Offline]</b> is used for local software
+updates or installs from a <i>'wasta-offline'</i>  folder.
+    
+<b>wasta-offline folder:</b> $WO_LOC
+
+     <small><i><b>NOTE:</b> Be sure to close any other open software
+     management programs such as 'Update Manager' or
+     'Synaptic Package Manager' before continuing.</i></small>
+
+<b>SELECT the wasta [Offline] software mode:</b>" --radiolist \
+    --column "               " --column "Value" --column "Software Mode" \
+    --hide-column=2 "${LIST[@]}")
+
+case "$MODE" in
+
+"OFFLINE")
+    echo | tee -a "$LOG"
+    echo "OFFLINE Mode selected" | tee -a "$LOG"
+    # REPLACE sources.list, disable sources.list.d folder
+    
+    # re-create  empty  ${APT_SOURCES}
+    echo "# $LOG_DATE wasta-offline sources.list" > "${APT_SOURCES}"
+    
+    # if sources.list.d folder, need to EMPTY it so it is not used
+    if ! [ -e "${APT_SOURCES}.d.wasta" ] && [ -e "${APT_SOURCES}.d" ];
+    then
+        echo | tee -a "$LOG"
+        echo "Backing up current ${APT_SOURCES}.d folder" | tee -a "$LOG"
+        rsync -av  --remove-source-files \
+            "${APT_SOURCES}.d/" \
+            "${APT_SOURCES}.d.wasta/"
+    elif [ -e "${APT_SOURCES}.d.wasta" ]; 
+    then
+        echo | tee -a "$LOG"
+        echo "Using previous backup of ${APT_SOURCES}.d folder" | tee -a "$LOG"
+    fi
+
+    # back up apt lists
+    if ! [ -e "${APT_LISTS}.wasta" ] && [ -e "${APT_LISTS}" ];
+    then
+        echo | tee -a "$LOG"
+        echo "Backing up current ${APT_LISTS} folder" | tee -a "$LOG"
+        
+        #check if something (like mintupdate) is updating the lists.
+        [ -e ${APT_LISTS}/lock ] && \
+        while [ $(fuser ${APT_LISTS}/lock) ]; do
+            sleep 1
+        done | zenity --progress \
+                --title="wasta [Offline]: wait for apt list lock to finish" \
+                --pulsate --auto-close --width=500 --height=100 \
+                --no-cancel \
+                --window-icon=info \
+                --text="Another program is accessing the software lists...
+
+Is mintupdate or synaptic or apt cron job running?
+Waiting for it to finish..."
+
+        rsync -av  --exclude partial \
+            "${APT_LISTS}/" \
+            "${APT_LISTS}.wasta/"
+    elif [ -e "${APT_LISTS}.wasta" ]; 
+    then
+        echo | tee -a "$LOG"
+        echo "Using previous backup of ${APT_LISTS} folder" | tee -a "$LOG"
+    fi
+;;
+
+"HYBRID")
+    echo | tee -a "$LOG"
+    echo "OFFLINE AND INTERNET Mode selected" | tee -a "$LOG"
+;;
+
+*)
+    # Mode not recognized (user probably canceled dialog)
+    scriptExit
+;;
+
+esac
+
+# get series, load them up.
+SERIES=$(lsb_release -sc)
+case "$SERIES" in
+    precise|maya)
+        #LTS 12.04-based Mint 13
+        REPO_SERIES="precise"
+        MINT_SERIES="maya"
+    ;;
+
+    quantal|nadia)
+        REPO_SERIES="quantal"
+        MINT_SERIES="nadia"
+    ;;
+    
+    raring|olivia)
+        REPO_SERIES="raring"
+        MINT_SERIES="olivia"
+    ;;
+    
+    saucy|petra)
+        REPO_SERIES="saucy"
+        MINT_SERIES="petra"
+    ;;
+    
+    trusty|qiana)
+        #LTS 14.04-based mint 17
+        REPO_SERIES="trusty"
+        MINT_SERIES="qiana"
+    ;;
+    trusty|rebecca)
+        #LTS 14.04-based mint 17.1
+        REPO_SERIES="trusty"
+        MINT_SERIES="rebecca"
+    ;;
+    trusty|rafaela)
+        #LTS 14.04-based mint 17.1
+        REPO_SERIES="trusty"
+        MINT_SERIES="rafaela"
+    ;;
+    *)
+        # Don't know the series, just go with what is reported (maybe debian)
+        # 14.10 Utopic Unicorn:  no corresponding Mint series, so default is OK
+        # 15.04 Vivid Vervet:    no corresponding Mint series, so default is OK
+        # 15.10 Wily Werewolf:   no corresponding Mint series, so default is OK
+        REPO_SERIES=$SERIES
+        MINT_SERIES=$SERIES
+    ;;
+esac
+
+echo | tee -a "$LOG"
+echo "Ubuntu Series Folder set to: $REPO_SERIES" | tee -a "$LOG"
+echo "Mint Series Folder set to: $MINT_SERIES" | tee -a "$LOG"
+
+# get architecture:
+ARCH=$(uname -m)
+
+if [ $ARCH == 'x86_64' ]
+then
+    ARCH_FOLDER="binary-amd64"
+elif [ $ARCH == 'i386' ] || [ $ARCH == 'i686' ]
+then
+    ARCH_FOLDER="binary-i386"
+else
+    ARCH_FOLDER="binary-${ARCH}"
+fi
+
+echo "Architecture Folder set to: $ARCH_FOLDER" | tee -a "$LOG"
+
+# local-cache repository addition, if found.
+if [ -e "$WO_LOC/local-cache" ];
+then
+    # --------------------------------------------------------------------------
+    # Optional: Update Package cache if necessary
+    # --------------------------------------------------------------------------
+
+    # this section depends on dpkg-scanpackages being available.  
+    # dpkg-scanpackages is not installed by default, but we don't want to add
+    # a dependency on this, so make it an optional step.
+
+    if [ -x /usr/bin/dpkg-scanpackages ]
+    then
+        cd "$WO_LOC/local-cache"
+        OUTDATED_PACKAGES="assume yes"
+
+        if [ -s "$REPO_SERIES/$ARCH_FOLDER/Packages" ]
+        then
+            #verified "Packages" exists, now we can compare the timestamp
+            #  to the .debs and see
+            OUTDATED_PACKAGES=$(\
+                find "$REPO_SERIES/$ARCH_FOLDER" -iname "*.deb" \
+                     -newer "$REPO_SERIES/$ARCH_FOLDER/Packages"\
+            )
+        fi
+        if [ -n "$OUTDATED_PACKAGES" ]
+        then
+            echo | tee -a "$LOG"
+echo "--------------------------------------------------------" | tee -a "$LOG"
+echo "*** Generate pkg list for wasta-offline Local Cache Repo" | tee -a "$LOG"
+echo "--------------------------------------------------------" | tee -a "$LOG"
+            echo | tee -a "$LOG"
+
+            #flush unfinished (buffered) writes to the USB before continuing.
+            sync ; sync
+            dpkg-scanpackages --multiversion "$REPO_SERIES/$ARCH_FOLDER" \
+                1> "$REPO_SERIES/$ARCH_FOLDER/Packages.0"  2>> "$LOG" &
+
+            (
+            sleep 2
+            COUNT=2
+            while [ "$(pgrep dpkg)" ]
+            do
+                echo "#Generating software list for wasta [Offline]...\n\nElapsed Time: $COUNT seconds\n\n\n"
+                sleep 1
+                COUNT=$((COUNT+1))
+            done
+
+            echo | tee -a "$LOG"
+            echo "Info: dpkg-scanpackages took approximately $COUNT sec." |tee -a "$LOG"
+
+            #flush unfinished (buffered) writes to the USB before continuing.
+            sync ; sync
+
+            ) | zenity --progress \
+                --title="wasta [Offline]: Generating Software Package List" \
+                --pulsate --auto-close --width=500 --height=200 \
+                --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+                --text="Generating software list for wasta [Offline]...\n\n\n\n"
+
+            echo | tee -a "$LOG"
+            echo "---------------------------------------------------" | tee -a "$LOG"
+            echo | tee -a "$LOG"
+
+            if [ -s "$REPO_SERIES/$ARCH_FOLDER/Packages.0" ]
+            then
+                # filesize is NOT 0
+                mv "$REPO_SERIES/$ARCH_FOLDER/Packages.0" \
+                   "$REPO_SERIES/$ARCH_FOLDER/Packages" 2>> "$LOG"
+                echo "Compressing Packages file" | tee -a "$LOG"
+                gzip -9c "$REPO_SERIES/$ARCH_FOLDER/Packages" \
+                    1> "$REPO_SERIES/$ARCH_FOLDER/Packages.gz" 2>> "$LOG"
+            else
+                # filesize is 0
+                echo "ERROR:  Probably a corrupt .deb file.  " | tee -a "$LOG"
+                echo "check dpkg-scanpackages log output.    " | tee -a "$LOG"
+                echo "Deleting packages.0:                   " | tee -a "$LOG"
+                rm "$REPO_SERIES/$ARCH_FOLDER/Packages.0" 2>> "$LOG"
+            fi
+        fi
+    fi
+    # --------------------------------------------------------------------------
+    # END Optional: Update Package cache if necessary
+    # --------------------------------------------------------------------------
+
+    if [ -e "$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/Packages" ] || \
+       [ -e "$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/Packages.gz" ]
+    then
+        # need to wrap file in quotes, in case drive has space in name
+        # adding [trusted=yes] so won't get authentication warnings
+        APT_LINE="deb [trusted=yes] file:\"$WO_LOC/local-cache\" $REPO_SERIES/$ARCH_FOLDER/"
+    
+        echo | tee -a "$LOG"
+        echo "$(date +%T) local-cache repository found: adding following line to sources.list:" | tee -a "$LOG"
+        echo "$APT_LINE" | tee -a "$LOG"
+    
+        # Insert at top of sources.list
+        sed -i -e "1i $APT_LINE" "$APT_SOURCES"
+    else
+        echo | tee -a "$LOG"
+        echo "No $WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/Packages file found.
+*wasta [Offline] WILL RUN WITHOUT THE OFFLINE LOCAL-CACHE*\n\n" | tee -a "$LOG"
+        zenity --error --no-wrap --height=200 \
+          --title="wasta [Offline] PACKAGES error" \
+          --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+          --text="<b>Local-cache is DISABLED due to an error</b>\n
+Check the logs ($LOG)
+for Package errors.
+
+Internet and mirror repositories will still work, so not aborting."
+    fi
+else
+    echo | tee -a "$LOG"
+    echo "No wasta-offline local-cache repository found to add to sources.list." | tee -a "$LOG"
+fi
+
+# --------------------------------------------------------------------------
+# Non-distributable files - offline cache
+#    Some packages MUST download files from the internet.  There is NO standard
+#    for managing offline files - the package has to be written to support it.
+#    So, we can't manage this fully with Wasta-Offline, but we can help it.
+# --------------------------------------------------------------------------
+DEB_FILES=$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER
+if [ -e "${DEB_FILES}/non-distributables/preseed.cfg" ];
+then
+    echo | tee -a "$LOG"
+    echo "Found preseed.cfg. Setting automatic debconf answers" | tee -a "$LOG"
+    debconf-set-selections "${DEB_FILES}/non-distributables/preseed.cfg"
+fi
+
+MIRROR_BASE=""
+# mirror additions, if found
+if [ -x "$WO_LOC/mirror" ]
+then
+  MIRROR_BASE="mirror"
+elif [ -x "$WO_LOC/apt-mirror" ]
+then
+  MIRROR_BASE="apt-mirror"
+elif [ -x "$WO_LOC/debmirror" ]
+then
+  MIRROR_BASE="debmirror"
+fi
+
+if [ ${MIRROR_BASE} ]; then
+    echo | tee -a "$LOG"
+    echo "$(date +%T) ${MIRROR_BASE} folder found: searching for repositories to add to sources.list..." | tee -a "$LOG"
+    
+    # find mirror repositories
+    TMPDIR=$(mktemp -d)
+    
+    GZIP_OPTION="dk --verbose"
+    [ "$REPO_SERIES" == "precise" ] || \
+    [ "$REPO_SERIES" == "quantal" ] || \
+    [ "$REPO_SERIES" == "raring" ]  || \
+    [ "$REPO_SERIES" == "saucy" ]      \
+        && GZIP_OPTION="d --verbose"
+echo "testing. create Package gzip -${GZIP_OPTION} ./Packages.gz"|tee -a "$LOG"
+
+    # zenity progress dialog
+    (
+    # convert Packages.gz to Packages first (for debmirror)  -k=keep orig
+
+    echo "#Creating Packages files from Packages.gz ...\n\n\n\n\n"
+
+    # find, but first "prune" "pool folders" (containing the actual binaries)
+    #   for performance (gains approx 100 fold improvement)
+    # second "$REPO_SERIES-*" allows finding of "/precise-updates/" and
+    #   "/precise-security/" sections.
+    find "$WO_LOC/${MIRROR_BASE}/" \
+        -name "pool"  -type d -prune -o \
+        -name ".temp" -type d -prune -o \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES/*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; -o \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; -o \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$MINT_SERIES/*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; \
+      | tee -a "$LOG"
+
+echo "testing. PLEASE verify Packages created OK. if gzip -dk, Packages.gz should still exist." | tee -a "$LOG"
+
+
+    echo "#Finding Packages files ...\n\n\n\n\n"
+    find "$WO_LOC/${MIRROR_BASE}/" \
+        -name "pool"  -type d -prune -o \
+        -name ".temp" -type d -prune -o \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES/*/$ARCH_FOLDER/Packages" -print -o \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages" -print -o \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$MINT_SERIES/*/$ARCH_FOLDER/Packages" -print > \
+        "$TMPDIR/${MIRROR_BASE}.list"
+    
+    # load them in sources.list
+    while read -r LINE
+    do
+        echo         | tee -a "$LOG"
+        echo "$(date +%T) Processing wasta-offline ${MIRROR_BASE} repository:" \
+                     | tee -a "$LOG"
+        echo "$LINE" | tee -a "$LOG"
+
+        
+        # first part of line up to "/dists/" is repository
+        BEFORE_DISTS=$(echo $LINE | grep -o ".*dists")
+        # trim off "dists"
+        REPO=$(echo $BEFORE_DISTS | sed -e 's@dists@@')
+        
+        # series and section are in line after "/dists/"
+        AFTER_DISTS=$(echo $LINE | grep -o "dists.*")
+        # trim off "/dists/" and also anything starting at "/binary/" (unneeded)
+        SERIES_SECTION=$(echo $AFTER_DISTS | sed -e 's@dists/@@' | sed -e 's@/binary.*@@' )
+        # SERIES is first item
+        SERIES=${SERIES_SECTION%%/*}
+        # SECTION is last item
+        SECTION=$(echo ${SERIES_SECTION##*/} | sed -e "s@${SERIES}@@" )
+        
+        # Resulting line for sources.list
+        APT_LINE="deb file:\"$REPO\" $SERIES $SECTION"
+        
+        echo "Adding following line to sources.list:"    | tee -a "$LOG"
+        echo "$APT_LINE"                                 | tee -a "$LOG"
+
+        echo "#Adding wasta [Offline] ${MIRROR_BASE} repositories...\n\nRepository:  $REPO\nSeries and Section:  $SERIES $SECTION\n\n"
+        #let user see message
+        sleep 1
+        # Insert at BEGINNING of file
+        sed -i -e "1i $APT_LINE" "$APT_SOURCES"
+
+    done < "$TMPDIR/${MIRROR_BASE}.list"
+
+    rm -r $TMPDIR
+    ) | zenity --progress --title="wasta [Offline]" \
+        --text="Adding wasta [Offline] ${MIRROR_BASE} repositories...\n\n\n\n\n" \
+        --pulsate --auto-close --no-cancel --width=500 --height=200 \
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+    
+    if [ "$?" -ne 0 ]
+    then
+        # some error, so will exit
+        scriptExit
+    fi
+else
+    echo | tee -a "$LOG"
+    echo "No mirror entries to add to sources.list." | tee -a "$LOG"
+fi
+
+# perform apt-get update
+echo | tee -a "$LOG"
+echo "$(date +%T) Performing apt-get update to sync package listings..."| tee -a "$LOG"
+echo | tee -a "$LOG"
+
+apt-get update 2>&1 >> "$LOG" &
+# get pid in case need to kill later
+APT_PID=$!
+
+(
+# Loop while still processing
+sleep 2
+COUNT=2
+
+while [ "$(ps --no-headers -p $APT_PID)" ]
+do
+    echo "#Updating software lists...\n\nElapsed Time: $COUNT seconds\n\n\n"
+    sleep 1
+    COUNT=$((COUNT+1))
+done
+
+echo | tee -a "$LOG"
+echo "Info: apt-get update took approximately  $COUNT seconds." | tee -a "$LOG"
+
+) | zenity --progress --title="wasta [Offline]: Updating Software Lists" \
+        --text="Updating software lists...\n\n\n\n\n" \
+        --pulsate --auto-close --width=500 --height=200 \
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+
+if [ "$?" -ne 0 ]
+then
+    # Some error or user canceled: exit
+    # kill apt-pid if still found
+    kill $APT_PID
+    scriptExit
+fi
+
+# ------------------------------------------------------------------------------
+# Processing Finished: prompt user to perform updates / installs
+# ------------------------------------------------------------------------------
+
+zenity --info --no-wrap --height=200 --width=500 \
+    --title="wasta [Offline]: Ready" --ok-label="Finished" \
+    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+    --text="<b>wasta [Offline] is ready to be used for local
+software updates or installs on this computer</b>\n
+
+<b>******************************************************</b>
+<b><i>Please leave this window open</i></b> and use other programs 
+such as '<i>Update Manager</i>' or '<i>Synaptic Package Manager</i>'
+to complete any software updates or installs.
+<i>(no internet connection will be used)</i>
+<b>******************************************************</b>\n
+
+<b>AFTER</b> all software updates and installs are completed,
+click <b>Finished</b> to restore the computer settings for normal
+software updates or installs and exit wasta [Offline]."
+
+# ------------------------------------------------------------------------------
+# Finished
+# ------------------------------------------------------------------------------
+scriptExit

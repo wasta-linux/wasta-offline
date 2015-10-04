@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# ==============================================================================
+# wasta-off-udev
+
+#   This script launches wasta-off-usb-autolaunch.  The reason for this
+#       wrapper script is because udev must not be held up or else the USB
+#       device is not ever mounted.  The mount needs to be finished to determine
+#       the owner of the device in order to know the x-display-server to launch
+#       wasta-backup on.
+#
+#   2014-03-21 rik: Initial script
+#   2014-03-31 rik: renamed to "wasta-off-udev" so that "pgrep wasta-offline"
+#       won't return PID of this script
+#
+# ==============================================================================
+
+/bin/bash -c "/usr/bin/wasta-off-usb-autolaunch $*" &
+
+exit 0

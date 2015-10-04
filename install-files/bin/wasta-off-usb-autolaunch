@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# ==============================================================================
+# wasta-off-usb-autolaunch
+#
+#   This script takes a device id as input, finds the mount point of the device
+#       from df, determines the owner of the device, and finally launches
+#       wasta-offline on the device owner's x display server.
+#
+#   pkexec would be cleaner, but then sending the authentication agent prompt
+#       to the user's display is not working right (it only prompts in the terminal).
+#
+#   2014-03-21 rik: Initial script
+#   2014-03-25 rik: changed "pidof" to "pgrep" so could find wasta-offline
+#       process id.
+#   2014-03-31 rik: renamed to "wasta-off-usb-autolaunch" so that 
+#       "pgrep wasta-offline" won't return PID of this script!
+#   2014-04-19 jcl: removed gksu since it wasn't working with a non-sudo user
+#
+# ==============================================================================
+
+sleep 7s
+
+USB_DEVICE="/dev/"$1
+USB_MOUNT=$(df | grep $USB_DEVICE | awk '{print substr($0, index($0, $6))}')
+USB_OWNER=$(stat -c "%U" "$USB_MOUNT")
+PID_WASTA=""
+PID_WASTA=$(pgrep wasta-offline)
+
+# only launch wasta-backup if device has a 'wasta-offline' folder and
+# no other wasta-offline process running
+if [ -e "$USB_MOUNT/wasta-offline" ] && [ -z "$PID_WASTA" ];
+then
+    xhost local:$USB_OWNER
+    export DISPLAY=:0
+    
+    # 2014-03-24 rik:
+    #   pkexec does NOT work because it will prompt for password in the terminal
+    #   since run from root and it seems that root's "authentication agent"
+    #   is not the GUI, but is just in the terminal.  But, terminal window
+    #   doesn't appear when triggered here, so won't work!
+    #
+    #   but can't solve how, so reverting to gksu for now.
+    
+    #su $USB_OWNER -c "pkexec env DISPLAY=:0 wasta-offline \"$USB_MOUNT/wasta-offline\""
+    
+    # calling from userid because need to have them enter a password,
+    #   or else wil auto-start with root permisisons w/o even needing a password
+    
+    su $USB_OWNER -c "wasta-offline \"$USB_MOUNT/wasta-offline\""
+fi
+
+exit 0

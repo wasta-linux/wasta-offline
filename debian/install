@@ -1,0 +1,4 @@
+install-files/applications         usr/share
+install-files/bin                  usr
+install-files/icons                usr/share
+install-files/wasta-offline.rules  lib/udev/rules.d

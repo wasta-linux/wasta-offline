@@ -1,0 +1,165 @@
+wasta-offline (1.0.3) trusty; urgency=medium
+
+  * initial git commit
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Sun, 04 Oct 2015 15:07:56 +0300
+
+wasta-offline (1.0.2) precise; urgency=low
+
+  * support Rafaela release and non-distributables local cache
+
+ -- Justin Luth <jluth@mail.com>  Sat, 27 Jun 2015 15:15:54 +0300
+
+wasta-offline (1.0.1) precise; urgency=low
+
+  *  adding Sam Smucker's code to support debmirror, de-emphasize apt-mirror
+  *  modify backup/restore code to be a bit less draconian
+  *  ensure that the mirror paths have a "dists" folder
+
+ -- Justin Luth <jluth@mail.com>  Sat, 27 Dec 2014 11:14:06 +0300
+
+wasta-offline (1.0) precise; urgency=low
+
+  * bumping to version 1.0
+
+ -- Justin Luth <jluth@mail.com>  Mon, 10 Nov 2014 15:04:26 +0300
+
+wasta-offline (0.1.19.1) precise; urgency=low
+
+  * added support for Rebecca Mint (17.1) and Utopic Unicorn (14.10)
+
+ -- Justin Luth <jluth@mail.com>  Wed, 15 Oct 2014 21:08:23 +0300
+
+wasta-offline (0.1.18) precise; urgency=low
+
+  * removed: gksu call from the desktop launcher
+
+  * fixed: "restore original state" if other apps recreated APT structures
+
+  * added: wait for other apps to release /var/lib/apt/lists/lock
+
+ -- Justin Luth <jluth@mail.com>  Wed, 16 Jul 2014 14:01:50 -0400
+
+wasta-offline (0.1.16) precise; urgency=low
+
+  * adding gksu dependency (trusty doesn't include it by default)
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Fri, 25 Apr 2014 11:14:17 -0500
+
+wasta-offline (0.1.15) precise; urgency=low
+
+  * $USER not defined when launching with gksu.  Also no $LOGNAME,
+    $(logname), $(whoami), $(who), so needing to adjust
+    12.10+ folder selection to just /media/*/*/wasta-offline  
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Thu, 24 Apr 2014 12:11:21 -0500
+
+wasta-offline (0.1.14) precise; urgency=low
+
+  * re-added ARCH_FOLDER to local-cache
+
+ -- Justin Luth <jluth@mail.com>  Mon, 21 Apr 2014 22:24:35 +0300
+
+wasta-offline (0.1.13) precise; urgency=low
+
+  * removed ARCH_FOLDER from local-cache
+
+ -- Justin Luth <jluth@mail.com>  Sat, 19 Apr 2014 22:20:37 +0300
+
+wasta-offline (0.1.11) precise; urgency=low
+
+  * Added a "sleep" before progress loops - to ensure that the background
+    process had already started.
+    Added code to run as SU instead of SUDO for regular users.
+    Added sync, and a --multiversion flag to dpkg-scanpackages
+    Also cleaned up stuff like spacing, dead code.   
+
+ -- Justin Luth <jluth@mail.com>  Sat, 19 Apr 2014 16:26:28 +0300
+
+wasta-offline (0.1.10) precise; urgency=low
+
+  * Added jcl modifications to regen Packages list if it is found
+    to be outdated (a .deb exists in the folder newer than the Packages file).
+    This is optional so do not require a dpkg-scanpackages dependency,
+    which would make it difficult to install wasta-offline manually on
+    remote machines.
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 14 Apr 2014 12:21:39 -0500
+
+wasta-offline (0.1.9) precise; urgency=low
+
+  * piping output of apt-get update to log.
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Wed, 09 Apr 2014 12:31:26 -0500
+
+wasta-offline (0.1.8) precise; urgency=low
+
+  * Adding seconds count for long commands to log.
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Wed, 09 Apr 2014 12:13:46 -0500
+
+wasta-offline (0.1.7) precise; urgency=low
+
+  * Added "HYBRID" (offline and internet) software mode option: if
+    internet, then give option to insert wasta-offline repos at top
+    of sources.list, so then if a missing dependency, will be downloaded
+    from "normal" internet repository
+  * Reworked Progress Dialogs
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Wed, 09 Apr 2014 11:07:34 -0500
+
+wasta-offline (0.1.6) precise; urgency=low
+
+  * apt-mirror find command to load repositories: added "prune" of pool
+    folders (approx. 100-fold speed increase!).  Also ensured that
+    "precise-security" and "precise-updates" sections would be selected
+    with a $UBU_SERIES-* find parameter (before was only selecting
+    "precise/" as a valid section).
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Sat, 05 Apr 2014 17:48:19 -0500
+
+wasta-offline (0.1.5) precise; urgency=low
+
+  * wasta-offline-setup: split apart to separate package
+  * wasta-offline: added timestamps to some log entries so can determine where
+    need more "progress window" feedback for user (likely in apt-mirror
+    processing).
+  * new icon
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 31 Mar 2014 13:49:03 -0500
+
+wasta-offline (0.1.4) precise; urgency=low
+
+  * wasta-offline: backing up and restoring apt lists as well, so that after
+    wasta-offline used, won't need to pull all lists from scratch from
+    internet (that would be a download of maybe 16MB minimum).  Since
+    restoring lists, will now do apt-get update when exiting to ensure
+    package lists are in sync.
+  * "space in usb drive name" compatibility modifications.
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Tue, 25 Mar 2014 10:49:37 -0500
+
+wasta-offline (0.1.3) precise; urgency=low
+
+  * wasta-offline: adjusting apt saved files to just append .wasta
+    instead of .wasta-save
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 24 Mar 2014 20:28:27 -0500
+
+wasta-offline (0.1.2) precise; urgency=low
+
+  * Added wasta-linux icons, launcher for wasta-base-setup
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 24 Mar 2014 19:32:51 -0500
+
+wasta-offline (0.1.1) precise; urgency=low
+
+  * Minor dialog cleanup
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 24 Mar 2014 17:51:10 -0500
+
+wasta-offline (0.1.0) precise; urgency=low
+
+  * Initial Release.
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 24 Mar 2014 08:13:04 -0500
