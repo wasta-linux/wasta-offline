@@ -483,6 +483,10 @@ case "$SERIES" in
         REPO_SERIES="trusty"
         MINT_SERIES="rafaela"
     ;;
+    xenial)
+        #LTS 16.04
+        REPO_SERIES="xenial"
+    ;;
     *)
         # Don't know the series, just go with what is reported (maybe debian)
         # 14.10 Utopic Unicorn:  no corresponding Mint series, so default is OK
