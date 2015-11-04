@@ -1,3 +1,11 @@
+wasta-offline (1.0.4) trusty; urgency=medium
+
+  * debian/control: adding 'at' dependency
+  * wasta-off-udev: launching wasta-off-usb-autolaunch with 'at now', so that
+    udev won't be held up mounting the usb drives.
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Wed, 04 Nov 2015 11:15:35 +0300
+
 wasta-offline (1.0.3) trusty; urgency=medium
 
   * initial git commit
