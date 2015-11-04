@@ -7,14 +7,17 @@
 #       wrapper script is because udev must not be held up or else the USB
 #       device is not ever mounted.  The mount needs to be finished to determine
 #       the owner of the device in order to know the x-display-server to launch
-#       wasta-backup on.
+#       wasta-offline on.
 #
 #   2014-03-21 rik: Initial script
 #   2014-03-31 rik: renamed to "wasta-off-udev" so that "pgrep wasta-offline"
 #       won't return PID of this script
+#   2015-11-04 rik: using "at" run dependent script, otherwise using 15.10
+#       even though this script finishes, the automount of the usb is held
+#       until the dependent script finishes as well.
 #
 # ==============================================================================
 
-/bin/bash -c "/usr/bin/wasta-off-usb-autolaunch $*" &
+echo "/usr/bin/wasta-off-usb-autolaunch $*" | at now
 
 exit 0

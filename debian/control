@@ -8,7 +8,7 @@ Homepage: https://launchpad.net/~wasta-linux
 
 Package: wasta-offline
 Architecture: any
-Depends: gksu, ${shlibs:Depends}, ${misc:Depends}
+Depends: at, gksu, ${shlibs:Depends}, ${misc:Depends}
 Description: Offline software updates and installs.
  .
  Wasta-offline modifies the current computer's "software sources" (or apt
