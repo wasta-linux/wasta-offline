@@ -1,3 +1,9 @@
+wasta-offline (1.0.5) precise; urgency=low
+
+  * limit using 'at' only when it is available
+
+ -- Justin Luth <jluth@mail.com>  Thu, 12 Nov 2015 11:27:20 +0300
+
 wasta-offline (1.0.4) trusty; urgency=medium
 
   * debian/control: adding 'at' dependency

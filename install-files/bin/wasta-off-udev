@@ -15,9 +15,14 @@
 #   2015-11-04 rik: using "at" run dependent script, otherwise using 15.10
 #       even though this script finishes, the automount of the usb is held
 #       until the dependent script finishes as well.
+#   2015-11-12 jcl: only use "at" if usable (broken by remastersys).
 #
 # ==============================================================================
 
-echo "/usr/bin/wasta-off-usb-autolaunch $*" | at now
+if ! [ -e /usr/spool/cron/atjobs/.SEQ ]; then
+  /bin/bash -c "/usr/bin/wasta-off-usb-autolaunch $*" &
+else
+  echo "/usr/bin/wasta-off-usb-autolaunch $*" | at now
+fi
 
 exit 0
