@@ -19,7 +19,7 @@
 #
 # ==============================================================================
 
-if ! [ -e /usr/spool/cron/atjobs/.SEQ ]; then
+if ! [ -e /var/spool/cron/atjobs/.SEQ ]; then
   /bin/bash -c "/usr/bin/wasta-off-usb-autolaunch $*" &
 else
   echo "/usr/bin/wasta-off-usb-autolaunch $*" | at now

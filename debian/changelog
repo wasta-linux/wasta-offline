@@ -1,4 +1,4 @@
-wasta-offline (1.0.5) precise; urgency=low
+wasta-offline (1.0.5.1) precise; urgency=low
 
   * limit using 'at' only when it is available
 
