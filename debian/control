@@ -7,7 +7,7 @@ Standards-Version: 3.9.3
 Homepage: https://launchpad.net/~wasta-linux
 
 Package: wasta-offline
-Architecture: any
+Architecture: all
 Depends: at, gksu, ${shlibs:Depends}, ${misc:Depends}
 Description: Offline software updates and installs.
  .
