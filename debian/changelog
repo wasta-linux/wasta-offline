@@ -1,6 +1,7 @@
-wasta-offline (1.0.5.2) precise; urgency=low
+wasta-offline (1.0.5.3) precise; urgency=low
 
   * change architecture to "all" instead of "any" to get an ..._all.deb
+  * Suggest: wasta-offline-setup to alert the installer of a companion app
 
  -- Justin Luth <jluth@mail.com>  Tue, 22 Dec 2015 08:53:14 +0300
 
