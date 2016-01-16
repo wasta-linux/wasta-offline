@@ -1,3 +1,9 @@
+wasta-offline (1.0.5.4) precise; urgency=low
+
+  * recognize Mint Rosa (17.3) and Sarah (16.04)
+
+ -- Justin Luth <jluth@mail.com>  Sat, 16 Jan 2016 09:24:07 +0300
+
 wasta-offline (1.0.5.3) precise; urgency=low
 
   * change architecture to "all" instead of "any" to get an ..._all.deb
