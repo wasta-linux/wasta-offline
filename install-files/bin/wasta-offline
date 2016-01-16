@@ -447,51 +447,39 @@ esac
 # get series, load them up.
 SERIES=$(lsb_release -sc)
 case "$SERIES" in
-    precise|maya)
+    maya)
         #LTS 12.04-based Mint 13
         REPO_SERIES="precise"
-        MINT_SERIES="maya"
+        MINT_SERIES="$SERIES"
     ;;
 
-    quantal|nadia)
+    nadia)
         REPO_SERIES="quantal"
-        MINT_SERIES="nadia"
+        MINT_SERIES="$SERIES"
     ;;
     
-    raring|olivia)
+    olivia)
         REPO_SERIES="raring"
-        MINT_SERIES="olivia"
+        MINT_SERIES="$SERIES"
     ;;
     
-    saucy|petra)
+    petra)
         REPO_SERIES="saucy"
-        MINT_SERIES="petra"
+        MINT_SERIES="$SERIES"
     ;;
     
-    trusty|qiana)
-        #LTS 14.04-based mint 17
+    qiana|rebecca|rafaela|rosa)
+        #LTS 14.04 based Mint 17.x
         REPO_SERIES="trusty"
-        MINT_SERIES="qiana"
+        MINT_SERIES="$SERIES"
     ;;
-    trusty|rebecca)
-        #LTS 14.04-based mint 17.1
-        REPO_SERIES="trusty"
-        MINT_SERIES="rebecca"
-    ;;
-    trusty|rafaela)
-        #LTS 14.04-based mint 17.1
-        REPO_SERIES="trusty"
-        MINT_SERIES="rafaela"
-    ;;
-    xenial)
-        #LTS 16.04
+    sarah)
+        #LTS 16.04 based Mint 18.x
         REPO_SERIES="xenial"
+        MINT_SERIES="$SERIES"
     ;;
     *)
-        # Don't know the series, just go with what is reported (maybe debian)
-        # 14.10 Utopic Unicorn:  no corresponding Mint series, so default is OK
-        # 15.04 Vivid Vervet:    no corresponding Mint series, so default is OK
-        # 15.10 Wily Werewolf:   no corresponding Mint series, so default is OK
+        # Not a Mint distribution, just go with what is reported
         REPO_SERIES=$SERIES
         MINT_SERIES=$SERIES
     ;;
