@@ -72,6 +72,7 @@
 #       Using Sam Smucker's code to support debmirror / repositories
 #       (create missing Packages, exclude .temp)
 #  2015-06-30 jcl: 1.0.2 support "Rafaela", offline non-distributables
+#  2016-04-26 jcl: add non-distributables <WO_FOLDER> variable
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -629,9 +630,18 @@ fi
 DEB_FILES=$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER
 if [ -e "${DEB_FILES}/non-distributables/preseed.cfg" ];
 then
-    echo | tee -a "$LOG"
-    echo "Found preseed.cfg. Setting automatic debconf answers" | tee -a "$LOG"
-    debconf-set-selections "${DEB_FILES}/non-distributables/preseed.cfg"
+    #12.10+ mounts to /media/$USER. Modify the placeholder <WO_FOLDER> to accomodate this.
+    sed -e "/^[^#]/ s|<WO_FOLDER>|${WO_LOC}|" \
+      "${DEB_FILES}/non-distributables/preseed.cfg" \
+      > "${DEB_FILES}/non-distributables/preseed.processed.cfg"
+    if [ -e "${DEB_FILES}/non-distributables/preseed.processed.cfg" ]; then
+        echo | tee -a "$LOG"
+        echo "Found preseed.cfg. Setting automatic debconf answers" | tee -a "$LOG"
+        debconf-set-selections "${DEB_FILES}/non-distributables/preseed.processed.cfg"
+        rm "${DEB_FILES}/non-distributables/preseed.processed.cfg"
+    else
+        echo "WARNING: preseed.cfg could not be processed." | tee -a "$LOG"
+    fi
 fi
 
 MIRROR_BASE=""
@@ -796,12 +806,10 @@ software updates or installs on this computer</b>\n
 <b><i>Please leave this window open</i></b> and use other programs 
 such as '<i>Update Manager</i>' or '<i>Synaptic Package Manager</i>'
 to complete any software updates or installs.
-<i>(no internet connection will be used)</i>
 <b>******************************************************</b>\n
 
 <b>AFTER</b> all software updates and installs are completed,
-click <b>Finished</b> to restore the computer settings for normal
-software updates or installs and exit wasta [Offline]."
+click <b>Finished</b> to exit wasta [Offline]."
 
 # ------------------------------------------------------------------------------
 # Finished
