@@ -1,4 +1,4 @@
-wasta-offline (1.1.9.3) precise; urgency=low
+wasta-offline (1.1.9.4) precise; urgency=low
 
   * Add <WO_FOLDER> variable for non-distributables
 

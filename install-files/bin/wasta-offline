@@ -640,7 +640,10 @@ then
         debconf-set-selections "${DEB_FILES}/non-distributables/preseed.processed.cfg"
         rm "${DEB_FILES}/non-distributables/preseed.processed.cfg"
     else
-        echo "WARNING: preseed.cfg could not be processed." | tee -a "$LOG"
+        echo "WARNING: using un-processed preseed.cfg."    | tee -a "$LOG"
+        echo "   Perhaps non-distributables is read-only." | tee -a  "$LOG"
+        #perhaps media is read-only or hard-coded paths are OK - process anyway.
+        debconf-set-selections "${DEB_FILES}/non-distributables/preseed.cfg"
     fi
 fi
 
