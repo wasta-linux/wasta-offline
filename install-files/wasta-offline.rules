@@ -1,2 +1,2 @@
 # call wasta-offline-udev for any added device.  Kernel (device id) is passed
-SUBSYSTEM=="block", KERNEL=="sd??*", ACTION=="add", SUBSYSTEMS=="*", RUN+="/bin/sh -c '/usr/bin/wasta-off-udev $kernel'"
+SUBSYSTEM=="block", KERNEL=="sd??*", ACTION=="add", SUBSYSTEMS=="usb", RUN+="/bin/sh -c '/usr/bin/wasta-off-udev $kernel'"
