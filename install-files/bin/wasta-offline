@@ -763,6 +763,20 @@ echo | tee -a "$LOG"
 echo "$(date +%T) Performing apt-get update to sync package listings..."| tee -a "$LOG"
 echo | tee -a "$LOG"
 
+#check if something (like mintupdate) is updating the lists.
+[ -e ${APT_LISTS}/lock ] && \
+while [ $(fuser ${APT_LISTS}/lock) ]; do
+    sleep 1
+done | zenity --progress \
+        --title="wasta [Offline]: wait for apt list lock to finish" \
+        --pulsate --auto-close --width=500 --height=100 \
+        --no-cancel \
+        --window-icon=info \
+        --text="Another program is accessing the software lists...
+
+Is mintupdate or synaptic running?
+Waiting for it to finish..."
+
 apt-get update 2>&1 >> "$LOG" &
 # get pid in case need to kill later
 APT_PID=$!

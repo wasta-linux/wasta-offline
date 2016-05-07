@@ -1,3 +1,9 @@
+wasta-offline (1.1.9.6) precise; urgency=low
+
+  * added check for locked lists before apt-get update
+
+ -- Justin Luth <jluth@mail.com>  Sat, 07 May 2016 10:00:31 +0300
+
 wasta-offline (1.1.9.5) precise; urgency=low
 
   * change udev rule to SUBSYSTEMS="usb" instead of "*"
