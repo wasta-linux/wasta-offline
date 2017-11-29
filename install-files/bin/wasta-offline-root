@@ -1,0 +1,227 @@
+#!/bin/bash
+
+APT_SOURCES="/etc/apt/sources.list"
+APT_LISTS="/var/lib/apt/lists"
+
+HOST=$(uname -n)
+LOG_DATE=$3
+if [ -z "$LOG_DATE" ]; then
+  LOG_DATE=$(date +%F-%H-%M)
+fi
+
+WO_LOC=$2
+if [ -z "$WO_LOC" ] || ! [ -x "$WO_LOC/local-cache/" ]; then
+  if [ "$1" == "restoreApt" ] \
+     && [ "$(dirname $WO_LOC)" == "$(dirname $(mktemp --dry-run))" ]; then
+    LOG=$WO_LOC
+    echo "using temporary log $LOG" | tee -a "$LOG"
+  else
+    echo "ERROR: the variable WO_LOC must point to a valid wasta-offline folder"
+    echo "       not [$WO_LOC]"
+    exit 1
+  fi
+else
+  LOG="$WO_LOC/log/wasta-offline/$LOG_DATE-$HOST.log"
+fi
+
+# ------------------------------------------------------------------------------
+# Function: wait_for_locked_apt
+#
+#   Check if other tasks are using apt, and wait until they are finished.
+# ------------------------------------------------------------------------------
+wait_for_locked_apt () {
+  [ -e "${APT_LISTS}/lock" ] && \
+  while [ $(fuser "${APT_LISTS}/lock" 2> /dev/null) ]; do
+    echo "Waiting for $APT_LISTS to unlock...$(date +%X)" | tee -a "${LOG}"
+    sleep 1
+  done
+}
+
+# ------------------------------------------------------------------------------
+# Function: backupApt
+#
+#   create a backup of the files we will be modifying.
+# ------------------------------------------------------------------------------
+backupApt () {
+  if [ -e "${APT_SOURCES}.wasta" ]; then
+    echo | tee -a "$LOG"
+    echo "Previous backup found - rolling back ${APT_SOURCES}" | tee -a "$LOG"
+    rsync "${APT_SOURCES}.wasta" "${APT_SOURCES}" | tee -a "$LOG"
+  elif [ -e "${APT_SOURCES}" ]; then
+    echo | tee -a "$LOG"
+    echo "Backing up current ${APT_SOURCES}" | tee -a "$LOG"
+    rsync "${APT_SOURCES}" "${APT_SOURCES}.wasta" | tee -a "$LOG"
+  else
+    #should never happen.
+    echo | tee -a "$LOG"
+    echo "WARNING: ${APT_SOURCES} not found" | tee -a "$LOG"
+  fi
+  echo
+}
+
+
+# ------------------------------------------------------------------------------
+# Function: restoreApt
+#
+#   Ensure we restore sources.list and sources.list.d when we exit
+# ------------------------------------------------------------------------------
+restoreApt () {
+    if [ -e "${APT_SOURCES}.wasta" ]; then
+        echo | tee -a "$LOG"
+        echo "Restoring ${APT_SOURCES}" | tee -a "$LOG"
+        rsync --remove-source-files \
+             "${APT_SOURCES}.wasta" \
+             "${APT_SOURCES}" | tee -a "$LOG"
+    fi
+
+    if [ -e "${APT_SOURCES}.d.wasta" ]; then
+        echo | tee -a "$LOG"
+        echo "Restoring ${APT_SOURCES}.d folder" | tee -a "$LOG"
+#JCL 2017-11-28 remove --delete-delay, so that add-apt-repositories during a
+#    wasta-offline session aren't lost.
+        rsync -av  \
+             "${APT_SOURCES}.d.wasta/" \
+             "${APT_SOURCES}.d/"  | tee -a "$LOG"
+        rm -fr "${APT_SOURCES}.d.wasta" | tee -a "$LOG"
+    fi
+
+    if [ -e "${APT_LISTS}.wasta" ]; then
+        echo | tee -a "$LOG"
+        echo "Restoring ${APT_LISTS}" | tee -a "$LOG"
+
+        wait_for_locked_apt
+        rsync -av --delete-delay --exclude partial \
+             "${APT_LISTS}.wasta/" \
+             "${APT_LISTS}/"  | tee -a "$LOG"
+        rm -fr "${APT_LISTS}.wasta"  | tee -a "$LOG"
+        # NOT performing apt-get update, as this could possibly take a long
+        #   time: effectively returning to how it was regarding package lists.
+    fi
+    rm -f "${APT_LISTS}/*_wasta-offline_*" | tee -a "$LOG"
+}
+
+# ------------------------------------------------------------------------------
+# Function: offlineApt
+#
+#   disable Internet apt sources, and replace with wasta-offine cache
+# ------------------------------------------------------------------------------
+offlineApt () {
+  if [ -e "${APT_SOURCES}" ] && ! [ -e "${APT_SOURCES}.wasta" ]; then
+    backupApt
+  fi
+  # re-create  empty  ${APT_SOURCES}
+  echo "# $LOG_DATE wasta-offline sources.list" > "${APT_SOURCES}"
+
+  # if sources.list.d folder, need to EMPTY it so it is not used
+  if [ -e "${APT_SOURCES}.d/" ] && ! [ -e "${APT_SOURCES}.d.wasta/" ]; then
+    echo | tee -a "$LOG"
+    echo "Backing up current ${APT_SOURCES}.d folder" | tee -a "$LOG"
+    rsync -av  --remove-source-files \
+         "${APT_SOURCES}.d/" \
+         "${APT_SOURCES}.d.wasta/" | tee -a "$LOG"
+  elif [ -e "${APT_SOURCES}.d.wasta" ];
+  then
+    echo | tee -a "$LOG"
+    echo "Using previous backup of ${APT_SOURCES}.d folder" | tee -a "$LOG"
+  fi
+
+  # back up apt lists - so we can restore without running apt-get update
+  if [ -e "${APT_LISTS}/" ] && ! [ -e "${APT_LISTS}.wasta/" ];
+  then
+    echo | tee -a "$LOG"
+    echo "Backing up current ${APT_LISTS} folder" | tee -a "$LOG"
+    wait_for_locked_apt
+    rsync -av --delete-delay --exclude partial \
+          "${APT_LISTS}/" \
+          "${APT_LISTS}.wasta/" | tee -a "$LOG"
+    rm "${APT_LISTS}/lock" | tee -a "$LOG"
+  elif [ -e "${APT_LISTS}.wasta" ];
+  then
+    echo | tee -a "$LOG"
+    echo "Using previous backup of ${APT_LISTS} folder" | tee -a "$LOG"
+  fi
+}
+
+addOfflineApt () {
+  REPO_SERIES=$1
+  ARCH_FOLDER=$2
+  if [ -z "$REPO_SERIES" ] || [ -z "$ARCH_FOLDER" ] ||
+     ! [ -x "$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/" ]; then
+    echo "ERROR: invalid path: $WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/" | tee -a "$LOG"
+    exit 1
+  fi
+
+  APT_LINE="deb [trusted=yes] file:\"$WO_LOC/local-cache\" $REPO_SERIES/$ARCH_FOLDER/"
+  sed -i -e "1i $APT_LINE"  "${APT_SOURCES}" | tee -a "$LOG"
+  echo "$(grep /local-cache ${APT_SOURCES})" | tee -a "$LOG"
+
+  # --------------------------------------------------------------------------
+  # Non-distributable files - offline cache
+  #    Some packages MUST download files from the internet.  There is NO standard
+  #    for managing offline files - the package has to be written to support it.
+  #    So, we can't manage this fully with Wasta-Offline, but we can help it.
+  # --------------------------------------------------------------------------
+  DEB_FILES=$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER
+  if [ -e "${DEB_FILES}/non-distributables/preseed.cfg" ];
+  then
+      sed -e "/^[^#]/ s|<WO_FOLDER>|${WO_LOC}|" \
+        "${DEB_FILES}/non-distributables/preseed.cfg" \
+        > "${DEB_FILES}/non-distributables/preseed.processed.cfg"
+      if [ -e "${DEB_FILES}/non-distributables/preseed.processed.cfg" ]; then
+          echo | tee -a "$LOG"
+          echo "Found preseed.cfg. Setting automatic debconf answers" | tee -a "$LOG"
+          debconf-set-selections "${DEB_FILES}/non-distributables/preseed.processed.cfg"
+          rm "${DEB_FILES}/non-distributables/preseed.processed.cfg"
+      else
+          echo "WARNING: using un-processed preseed.cfg."    | tee -a "$LOG"
+          echo "   Perhaps non-distributables is read-only." | tee -a  "$LOG"
+          #perhaps media is read-only or hard-coded paths are OK - process anyway.
+          debconf-set-selections "${DEB_FILES}/non-distributables/preseed.cfg"
+      fi
+  fi
+}
+
+addOfflineMirror () {
+  REPO=$1
+  SERIES=$2
+  SECTION=$3
+  if [ -z "$REPO" ] || [ -z "$SERIES" ] || [ -z "$SECTION" ]; then
+    echo "ERROR: invalid mirror: REPO[$REPO] SERIES[$SERIES] SECTION[$SECTION]" | tee -a "$LOG"
+    exit 1
+  fi
+
+  APT_LINE="deb file:\"$REPO\" $SERIES $SECTION"
+  sed -i -e "1i $APT_LINE"  "${APT_SOURCES}" | tee -a "$LOG"
+  echo "$(grep file:\"$REPO\" ${APT_SOURCES})" | tee -a "$LOG"
+}
+
+
+case $1 in
+  wait_for_locked_apt)
+    wait_for_locked_apt
+    ;;
+  backupApt)
+    backupApt
+    ;;
+  restoreApt)
+    restoreApt
+    ;;
+  offlineApt)
+    offlineApt
+    ;;
+  addOfflineApt)
+    addOfflineApt "$4" "$5"
+    ;;
+  addOfflineMirror)
+    addOfflineMirror "$4" "$5" "$6"
+    ;;
+  update)
+    wait_for_locked_apt
+    apt-get update | tee -a "$LOG"
+    ;;
+  *)
+    echo "WARNING: wasta-offline-root invalid call" | tee -a "$LOG"
+    ;;
+
+esac
+

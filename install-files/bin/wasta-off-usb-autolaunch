@@ -29,7 +29,7 @@ PID_WASTA=$(pgrep wasta-offline)
 
 # only launch wasta-backup if device has a 'wasta-offline' folder and
 # no other wasta-offline process running
-if [ -e "$USB_MOUNT/wasta-offline" ] && [ -z "$PID_WASTA" ];
+if [ -z "$PID_WASTA" ] && [ -e "$USB_MOUNT/wasta-offline" ];
 then
     xhost local:$USB_OWNER
     export DISPLAY=:0
@@ -39,8 +39,6 @@ then
     #   since run from root and it seems that root's "authentication agent"
     #   is not the GUI, but is just in the terminal.  But, terminal window
     #   doesn't appear when triggered here, so won't work!
-    #
-    #   but can't solve how, so reverting to gksu for now.
     
     #su $USB_OWNER -c "pkexec env DISPLAY=:0 wasta-offline \"$USB_MOUNT/wasta-offline\""
     

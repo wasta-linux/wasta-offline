@@ -1,3 +1,10 @@
+wasta-offline (2.0.0.0) bionic; urgency=low
+
+  * rewrite for polkit
+  * don't remove repositories added while wasta-offline was running.
+
+ -- Justin Luth <jluth@mail.com>  Fri, 01 Dec 2017 10:00:31 +0300
+
 wasta-offline (1.1.9.6) precise; urgency=low
 
   * added check for locked lists before apt-get update

@@ -73,30 +73,8 @@
 #       (create missing Packages, exclude .temp)
 #  2015-06-30 jcl: 1.0.2 support "Rafaela", offline non-distributables
 #  2016-04-26 jcl: add non-distributables <WO_FOLDER> variable
+#  2017-12-01 jcl: re-write for polkit UI/priviledge separation
 # ==============================================================================
-
-# ------------------------------------------------------------------------------
-# Check to ensure running as root
-# ------------------------------------------------------------------------------
-if [ $(id -u) -ne 0 ]
-then
-    # OUT will be <blank> if user not in sudo group
-    OUT=$(groups $(whoami) | grep "sudo")
-    if [ "$OUT" ]; then
-        # user has sudo permissions: use them to re-run the script
-        GKSU_MODE=sudo-mode
-    else
-        GKSU_MODE=su-mode
-    fi
-
-    gksu   --${GKSU_MODE}    --message \
-"<big><b>Authentication is required to run wasta [Offline]</b></big>
-
-You must be logged in as an Administrative user to use wasta [Offline]." \
-    wasta-offline "$@"
-
-    exit 0
-fi
 
 # pipefail will make $? contain the rightmost non-zero return, or 0 if all
 #   commands return 0.  Needed for "| tee" commands or else 0 will be the return
@@ -104,8 +82,34 @@ fi
 #   return 0).
 set -o pipefail
 
-APT_SOURCES="/etc/apt/sources.list"
 APT_LISTS="/var/lib/apt/lists"
+
+LOG_DATE=$(date +%F-%H-%M)
+HOST=$(uname -n)
+
+# ------------------------------------------------------------------------------
+# Function: wait_for_locked_apt
+#
+#   Check if other tasks are using apt, and wait until they are finished.
+# ------------------------------------------------------------------------------
+wait_for_locked_apt () {
+  if [ -e "${APT_LISTS}/lock" ]; then
+    pkexec wasta-offline-root wait_for_locked_apt "$WO_LOC" "$LOG_DATE" &
+    WATCHED_PID=$!
+
+    sleep 1
+    COUNT=1
+    while [ "$(ps --no-headers -p $WATCHED_PID)" ]; do
+      echo "#Another program is accessing the software lists...\n\nIs mintupdate or synaptic or apt cron job running?\n\nWaiting for it to finish...Elapsed Time: $COUNT seconds\n\n"
+      sleep 1
+      COUNT=$((COUNT+1))
+    done | zenity --progress \
+            --title="wasta [Offline]: wait for apt list lock to finish" \
+            --pulsate --auto-close --width=500 --height=100 \
+            --no-cancel \
+            --window-icon=info
+  fi
+}
 
 # ------------------------------------------------------------------------------
 # Function: scriptExit
@@ -113,70 +117,39 @@ APT_LISTS="/var/lib/apt/lists"
 #   Ensure we restore sources.list and sources.list.d when we exit
 # ------------------------------------------------------------------------------
 scriptExit () {
-    # restore sources.list file if saved item found
-    if [ -e "${APT_SOURCES}.wasta" ];
-    then
-        echo | tee -a "$LOG"
-        echo "Restoring ${APT_SOURCES}" | tee -a "$LOG"
-        mv "${APT_SOURCES}.wasta" "${APT_SOURCES}"  | tee -a "$LOG"
-    fi
-    
-    # restore sources.list.d folder if saved item found
-    if [ -e "${APT_SOURCES}.d.wasta" ];
-    then
-        echo | tee -a "$LOG"
-        echo "Restoring ${APT_SOURCES}.d folder" | tee -a "$LOG"
-        rsync -av --delete --exclude partial \
-             ${APT_SOURCES}.d.wasta/ \
-             ${APT_SOURCES}.d/  | tee -a "$LOG"
-        rm -fr ${APT_SOURCES}.d.wasta  | tee -a "$LOG"
-    fi
-    
-    # restore apt lists if saved item found
-    if [ -e "${APT_LISTS}.wasta" ];
-    then
-        echo | tee -a "$LOG"
-        echo "Restoring ${APT_LISTS}" | tee -a "$LOG"
-        
-        #check if something (like mintupdate) is updating the lists.
-        [ -e ${APT_LISTS}/lock ] && \
-        while [ $(fuser ${APT_LISTS}/lock) ]; do
-            sleep 1
-        done | zenity --progress \
-                --title="wasta [Offline]: wait for apt list lock to finish" \
-                --pulsate --auto-close --width=500 --height=100 \
-                --no-cancel \
-                --window-icon=info \
-                --text="Another program is accessing the software lists...
+  if [ -z "$WO_LOC" ]; then
+    LOG=$(mktemp --tmpdir wasta-offline.XXX)
+    WO_LOC=$LOG
+    echo "$MSG" | tee -a "$LOG"
+    echo "early exit: logging to $LOG " | tee -a "$LOG"
+  fi
 
-Is mintupdate or synaptic running?
-Waiting for it to finish..."
+  # restore apt lists if saved item found
+  if [ -e "${APT_LISTS}.wasta/" ]; then
+    wait_for_locked_apt
+  fi
+  pkexec wasta-offline-root restoreApt "$WO_LOC" "$LOG_DATE"
 
-        rsync -av --delete --exclude partial \
-            ${APT_LISTS}.wasta/ \
-            ${APT_LISTS}/  | tee -a "$LOG"
-        rm -fr ${APT_LISTS}.wasta  | tee -a "$LOG"
-        # NOT performing apt-get update, as this could possibly take a long
-        #   time: effectively returning to how it was regarding package lists.
-    fi
-    
-    # Remove "_wasta-offline_" files from $APT_LISTS
-    rm -f "${APT_LISTS}/*_wasta-offline_*"
-    
-    echo | tee -a "$LOG"
-    echo "-----------------------------------------------------------" | tee -a "$LOG"
-    echo $(date +%T) $HOST "wasta-offline complete" | tee -a "$LOG"
-    echo "===========================================================" | tee -a "$LOG"
-    
-    exit 0
+  echo "
+Hint: although theoretically unsafe, avoid the admin prompts with
+/etc/polkit-1/localauthority/50-local.d/org.wasta.apps.wasta-offline.pkla
+------------------------------------------------------------
+[Override policy: allow non-admins to run wasta-offline]
+    Identity=unix-group:*
+    Action=org.wasta.apps.wasta-offline
+    ResultActive=yes
+" | tee -a "$LOG"
+
+  echo "-----------------------------------------------------------" | tee -a "$LOG"
+  echo $(date +%T) $HOST "wasta-offline complete" | tee -a "$LOG"
+  echo "===========================================================" | tee -a "$LOG"
+
+  exit 0
 }
 
 # ------------------------------------------------------------------------------
 # Initial Setup
 # ------------------------------------------------------------------------------
-
-LOG_DATE=$(date +%F-%H-%M)
-HOST=$(uname -n)
 
 # Need to store up log messages, since log location not set yet.
 MSG=\
@@ -259,8 +232,6 @@ cache to a 'wasta-offline' folder, instead use
     if [ -z "$START_FOLDER" ]
     then
         # no wasta-offline, try /media/$USER (12.10 and newer)
-        # 2014-04-24 rik: this also won't work ($USER), but will just ignore for
-        #   now, and "/media" will be selected below.
         START_FOLDER=$(ls -1d /media/$USER 2>/dev/null | head -1)
     fi
     
@@ -324,21 +295,7 @@ echo "$MSG" | tee -a "$LOG"
 # Main Processing
 # ------------------------------------------------------------------------------
 
-# MAKE BACKUPS!!!!
-if [ -e "${APT_SOURCES}.wasta" ]; then
-  echo | tee -a "$LOG"
-  echo "Previous backup found - rolling back ${APT_SOURCES}" | tee -a "$LOG"
-  rsync "${APT_SOURCES}.wasta" "${APT_SOURCES}"
-elif [ -e "${APT_SOURCES}" ]; then
-  echo | tee -a "$LOG"
-  echo "Backing up current ${APT_SOURCES}" | tee -a "$LOG"
-  rsync "${APT_SOURCES}" "${APT_SOURCES}.wasta"
-else
-  echo | tee -a "$LOG"
-  echo "WARNING: ${APT_SOURCES} not found" | tee -a "$LOG"
-  #should never happen.  
-  #Perhaps "touch ${APT_SOURCES}.wasta" so we restore nothing?
-fi    
+pkexec wasta-offline-root backupApt "$WO_LOC" "$LOG_DATE"
 
 
 NET_CHECK=$(ping -c1 "www.google.com" 2> /dev/null)
@@ -385,52 +342,8 @@ case "$MODE" in
     echo | tee -a "$LOG"
     echo "OFFLINE Mode selected" | tee -a "$LOG"
     # REPLACE sources.list, disable sources.list.d folder
-    
-    # re-create  empty  ${APT_SOURCES}
-    echo "# $LOG_DATE wasta-offline sources.list" > "${APT_SOURCES}"
-    
-    # if sources.list.d folder, need to EMPTY it so it is not used
-    if ! [ -e "${APT_SOURCES}.d.wasta" ] && [ -e "${APT_SOURCES}.d" ];
-    then
-        echo | tee -a "$LOG"
-        echo "Backing up current ${APT_SOURCES}.d folder" | tee -a "$LOG"
-        rsync -av  --remove-source-files \
-            "${APT_SOURCES}.d/" \
-            "${APT_SOURCES}.d.wasta/"
-    elif [ -e "${APT_SOURCES}.d.wasta" ]; 
-    then
-        echo | tee -a "$LOG"
-        echo "Using previous backup of ${APT_SOURCES}.d folder" | tee -a "$LOG"
-    fi
-
-    # back up apt lists
-    if ! [ -e "${APT_LISTS}.wasta" ] && [ -e "${APT_LISTS}" ];
-    then
-        echo | tee -a "$LOG"
-        echo "Backing up current ${APT_LISTS} folder" | tee -a "$LOG"
-        
-        #check if something (like mintupdate) is updating the lists.
-        [ -e ${APT_LISTS}/lock ] && \
-        while [ $(fuser ${APT_LISTS}/lock) ]; do
-            sleep 1
-        done | zenity --progress \
-                --title="wasta [Offline]: wait for apt list lock to finish" \
-                --pulsate --auto-close --width=500 --height=100 \
-                --no-cancel \
-                --window-icon=info \
-                --text="Another program is accessing the software lists...
-
-Is mintupdate or synaptic or apt cron job running?
-Waiting for it to finish..."
-
-        rsync -av  --exclude partial \
-            "${APT_LISTS}/" \
-            "${APT_LISTS}.wasta/"
-    elif [ -e "${APT_LISTS}.wasta" ]; 
-    then
-        echo | tee -a "$LOG"
-        echo "Using previous backup of ${APT_LISTS} folder" | tee -a "$LOG"
-    fi
+    wait_for_locked_apt
+    pkexec wasta-offline-root offlineApt "$WO_LOC" "$LOG_DATE"
 ;;
 
 "HYBRID")
@@ -474,7 +387,7 @@ case "$SERIES" in
         REPO_SERIES="trusty"
         MINT_SERIES="$SERIES"
     ;;
-    sarah)
+    sarah|sonya|serena|sylvia)
         #LTS 16.04 based Mint 18.x
         REPO_SERIES="xenial"
         MINT_SERIES="$SERIES"
@@ -542,11 +455,12 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
             sync ; sync
             dpkg-scanpackages --multiversion "$REPO_SERIES/$ARCH_FOLDER" \
                 1> "$REPO_SERIES/$ARCH_FOLDER/Packages.0"  2>> "$LOG" &
+             WATCHED_PID=$!
 
             (
             sleep 2
             COUNT=2
-            while [ "$(pgrep dpkg)" ]
+            while [ "$(ps --no-headers -p $WATCHED_PID)" ]
             do
                 echo "#Generating software list for wasta [Offline]...\n\nElapsed Time: $COUNT seconds\n\n\n"
                 sleep 1
@@ -602,7 +516,7 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
         echo "$APT_LINE" | tee -a "$LOG"
     
         # Insert at top of sources.list
-        sed -i -e "1i $APT_LINE" "$APT_SOURCES"
+        pkexec wasta-offline-root addOfflineApt "$WO_LOC" "$LOG_DATE" "$REPO_SERIES" "$ARCH_FOLDER"
     else
         echo | tee -a "$LOG"
         echo "No $WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/Packages file found.
@@ -621,32 +535,6 @@ else
     echo "No wasta-offline local-cache repository found to add to sources.list." | tee -a "$LOG"
 fi
 
-# --------------------------------------------------------------------------
-# Non-distributable files - offline cache
-#    Some packages MUST download files from the internet.  There is NO standard
-#    for managing offline files - the package has to be written to support it.
-#    So, we can't manage this fully with Wasta-Offline, but we can help it.
-# --------------------------------------------------------------------------
-DEB_FILES=$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER
-if [ -e "${DEB_FILES}/non-distributables/preseed.cfg" ];
-then
-    #12.10+ mounts to /media/$USER. Modify the placeholder <WO_FOLDER> to accomodate this.
-    sed -e "/^[^#]/ s|<WO_FOLDER>|${WO_LOC}|" \
-      "${DEB_FILES}/non-distributables/preseed.cfg" \
-      > "${DEB_FILES}/non-distributables/preseed.processed.cfg"
-    if [ -e "${DEB_FILES}/non-distributables/preseed.processed.cfg" ]; then
-        echo | tee -a "$LOG"
-        echo "Found preseed.cfg. Setting automatic debconf answers" | tee -a "$LOG"
-        debconf-set-selections "${DEB_FILES}/non-distributables/preseed.processed.cfg"
-        rm "${DEB_FILES}/non-distributables/preseed.processed.cfg"
-    else
-        echo "WARNING: using un-processed preseed.cfg."    | tee -a "$LOG"
-        echo "   Perhaps non-distributables is read-only." | tee -a  "$LOG"
-        #perhaps media is read-only or hard-coded paths are OK - process anyway.
-        debconf-set-selections "${DEB_FILES}/non-distributables/preseed.cfg"
-    fi
-fi
-
 MIRROR_BASE=""
 # mirror additions, if found
 if [ -x "$WO_LOC/mirror" ]
@@ -660,7 +548,7 @@ then
   MIRROR_BASE="debmirror"
 fi
 
-if [ ${MIRROR_BASE} ]; then
+if [ "${MIRROR_BASE}" ]; then
     echo | tee -a "$LOG"
     echo "$(date +%T) ${MIRROR_BASE} folder found: searching for repositories to add to sources.list..." | tee -a "$LOG"
     
@@ -673,7 +561,6 @@ if [ ${MIRROR_BASE} ]; then
     [ "$REPO_SERIES" == "raring" ]  || \
     [ "$REPO_SERIES" == "saucy" ]      \
         && GZIP_OPTION="d --verbose"
-echo "testing. create Package gzip -${GZIP_OPTION} ./Packages.gz"|tee -a "$LOG"
 
     # zenity progress dialog
     (
@@ -738,7 +625,7 @@ echo "testing. PLEASE verify Packages created OK. if gzip -dk, Packages.gz shoul
         #let user see message
         sleep 1
         # Insert at BEGINNING of file
-        sed -i -e "1i $APT_LINE" "$APT_SOURCES"
+        pkexec wasta-offline-root addOfflineMirror "$WO_LOC" "$LOG_DATE" "$REPO" "$SERIES" "$SECTION"
 
     done < "$TMPDIR/${MIRROR_BASE}.list"
 
@@ -763,30 +650,16 @@ echo | tee -a "$LOG"
 echo "$(date +%T) Performing apt-get update to sync package listings..."| tee -a "$LOG"
 echo | tee -a "$LOG"
 
-#check if something (like mintupdate) is updating the lists.
-[ -e ${APT_LISTS}/lock ] && \
-while [ $(fuser ${APT_LISTS}/lock) ]; do
-    sleep 1
-done | zenity --progress \
-        --title="wasta [Offline]: wait for apt list lock to finish" \
-        --pulsate --auto-close --width=500 --height=100 \
-        --no-cancel \
-        --window-icon=info \
-        --text="Another program is accessing the software lists...
-
-Is mintupdate or synaptic running?
-Waiting for it to finish..."
-
-apt-get update 2>&1 >> "$LOG" &
-# get pid in case need to kill later
-APT_PID=$!
+wait_for_locked_apt
+pkexec wasta-offline-root update "$WO_LOC" "$LOG_DATE" &
+WATCHED_PID=$!
 
 (
 # Loop while still processing
 sleep 2
 COUNT=2
 
-while [ "$(ps --no-headers -p $APT_PID)" ]
+while [ "$(ps --no-headers -p $WATCHED_PID)" ]
 do
     echo "#Updating software lists...\n\nElapsed Time: $COUNT seconds\n\n\n"
     sleep 1

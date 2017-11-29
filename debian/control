@@ -2,16 +2,15 @@ Source: wasta-offline
 Section: utils
 Priority: extra
 Maintainer: Rik Shaw <rikshaw76@gmail.com>
-Build-Depends: debhelper (>= 8.0.0)
-Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 9.0.0)
+Standards-Version: 3.9.7
 Homepage: https://launchpad.net/~wasta-linux
 
 Package: wasta-offline
 Architecture: all
-Depends: at, gksu, ${shlibs:Depends}, ${misc:Depends}
+Depends: at, policykit-1, rsync, ${shlibs:Depends}, ${misc:Depends}
 Suggests: wasta-offline-setup
 Description: Offline software updates and installs.
- .
  Wasta-offline modifies the current computer's "software sources" (or apt
  software repositories) to add local repositories from a wasta-offline
  folder.
