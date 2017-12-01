@@ -1,4 +1,4 @@
-wasta-offline (2.0.0.0) bionic; urgency=low
+wasta-offline (2.0.0.1) bionic; urgency=low
 
   * rewrite for polkit
   * don't remove repositories added while wasta-offline was running.

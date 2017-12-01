@@ -66,14 +66,12 @@
 #       app (like mintupdate) is re-creating the folder structures.
 #       -removed GKSU call from .desktop Exec= (didn't work for non-sudo users)
 #       -wait if /var/lib/apt/lists/ is locked
-#  2014-10-15 jcl: added support for mint Rebecca (17.1).
-#  2014-11-10 jcl: promoted to version 1.0
 #  2014-12-17 jcl: 1.0.1 reconfiguring backup and restore code. 
 #       Using Sam Smucker's code to support debmirror / repositories
 #       (create missing Packages, exclude .temp)
 #  2015-06-30 jcl: 1.0.2 support "Rafaela", offline non-distributables
 #  2016-04-26 jcl: add non-distributables <WO_FOLDER> variable
-#  2017-12-01 jcl: re-write for polkit UI/priviledge separation
+#  2017-12-01 jcl: 2.0.0 re-write for polkit UI/priviledge separation
 # ==============================================================================
 
 # pipefail will make $? contain the rightmost non-zero return, or 0 if all
@@ -608,9 +606,6 @@ if [ "${MIRROR_BASE}" ]; then
         -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; -o \
         -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$MINT_SERIES/*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; \
       | tee -a "$LOG"
-
-echo "testing. PLEASE verify Packages created OK. if gzip -dk, Packages.gz should still exist." | tee -a "$LOG"
-
 
     echo "#Finding Packages files ...\n\n\n\n\n"
     find "$WO_LOC/${MIRROR_BASE}/" \
