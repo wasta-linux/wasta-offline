@@ -129,6 +129,9 @@ scriptExit () {
     wait_for_locked_apt
   fi
   pkexec wasta-offline-root restoreApt "$WO_LOC" "$LOG_DATE"
+  if [ $? -gt 0 ]; then
+    PKEXEC_ERR=1
+  fi
 
   echo "
 Hint: although theoretically unsafe, avoid the admin prompts with
@@ -144,12 +147,26 @@ Hint: although theoretically unsafe, avoid the admin prompts with
   echo $(date +%T) $HOST "wasta-offline complete" | tee -a "$LOG"
   echo "===========================================================" | tee -a "$LOG"
 
+if [ $PKEXEC_ERR -gt 0 ]; then
+  zenity --text-info --title="wasta [Offline] Error: Log" --width=650 \
+    --height=500 --no-wrap --filename="$LOG" --font="Ubuntu Mono" \
+    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+ fi
+
   exit 0
 }
 
 # ------------------------------------------------------------------------------
 # Initial Setup
 # ------------------------------------------------------------------------------
+
+#prompt for credentials early on, since it always runs as root at some point
+pkexec wasta-offline-root init
+PKEXEC_ERR=$?
+if [ $PKEXEC_ERR -gt 0 ]; then
+  #only fails on authentication error, so don't attempt to restore old backup.
+  exit 1
+fi
 
 # Need to store up log messages, since log location not set yet.
 MSG=\
@@ -296,6 +313,10 @@ echo "$MSG" | tee -a "$LOG"
 # ------------------------------------------------------------------------------
 
 pkexec wasta-offline-root backupApt "$WO_LOC" "$LOG_DATE"
+PKEXEC_ERR=$?
+if [ $PKEXEC_ERR -gt 0 ]; then
+  scriptExit
+fi
 
 
 NET_CHECK=$(ping -c1 "www.google.com" 2> /dev/null)
@@ -344,6 +365,10 @@ case "$MODE" in
     # REPLACE sources.list, disable sources.list.d folder
     wait_for_locked_apt
     pkexec wasta-offline-root offlineApt "$WO_LOC" "$LOG_DATE"
+    PKEXEC_ERR=$?
+    if [ $PKEXEC_ERR -gt 0 ]; then
+      scriptExit
+    fi
 ;;
 
 "HYBRID")
@@ -387,7 +412,7 @@ case "$SERIES" in
         REPO_SERIES="trusty"
         MINT_SERIES="$SERIES"
     ;;
-    sarah|sonya|serena|sylvia)
+    sarah|serena|sonya|sylvia)
         #LTS 16.04 based Mint 18.x
         REPO_SERIES="xenial"
         MINT_SERIES="$SERIES"
@@ -517,6 +542,10 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
     
         # Insert at top of sources.list
         pkexec wasta-offline-root addOfflineApt "$WO_LOC" "$LOG_DATE" "$REPO_SERIES" "$ARCH_FOLDER"
+        PKEXEC_ERR=$?
+        if [ $PKEXEC_ERR -gt 0 ]; then
+          scriptExit
+        fi
     else
         echo | tee -a "$LOG"
         echo "No $WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/Packages file found.
@@ -626,6 +655,10 @@ echo "testing. PLEASE verify Packages created OK. if gzip -dk, Packages.gz shoul
         sleep 1
         # Insert at BEGINNING of file
         pkexec wasta-offline-root addOfflineMirror "$WO_LOC" "$LOG_DATE" "$REPO" "$SERIES" "$SECTION"
+        PKEXEC_ERR=$?
+        if [ $PKEXEC_ERR -gt 0 ]; then
+          scriptExit
+        fi
 
     done < "$TMPDIR/${MIRROR_BASE}.list"
 
@@ -678,7 +711,8 @@ if [ "$?" -ne 0 ]
 then
     # Some error or user canceled: exit
     # kill apt-pid if still found
-    kill $APT_PID
+    pkexec wasta-offline-root cancelUpdate "$WO_LOC" "$LOG_DATE"
+    PKEXEC_ERR=1
     scriptExit
 fi
 

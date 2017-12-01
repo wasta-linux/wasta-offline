@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$1" == "init" ]; then
+  #just prompting for authentication early on, so it seems more natural
+  exit 0
+fi
+
 APT_SOURCES="/etc/apt/sources.list"
 APT_LISTS="/var/lib/apt/lists"
 
@@ -218,6 +223,11 @@ case $1 in
   update)
     wait_for_locked_apt
     apt-get update | tee -a "$LOG"
+    ;;
+  cancelUpdate)
+    echo "cancelUpdate requested by the user" | tee -a "$LOG"
+    echo "$(ps ax | grep apt-get | head -1; pgrep apt-get)" | tee -a "$LOG"
+    pkill apt-get | tee -a "$LOG"
     ;;
   *)
     echo "WARNING: wasta-offline-root invalid call" | tee -a "$LOG"
