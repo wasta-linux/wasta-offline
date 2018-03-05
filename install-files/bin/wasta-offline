@@ -415,6 +415,11 @@ case "$SERIES" in
         REPO_SERIES="xenial"
         MINT_SERIES="$SERIES"
     ;;
+    tara)
+        #LTS 18.04 based Mint 19.x
+        REPO_SERIES="bionic"
+        MINT_SERIES="$SERIES"
+    ;;
     *)
         # Not a Mint distribution, just go with what is reported
         REPO_SERIES=$SERIES
