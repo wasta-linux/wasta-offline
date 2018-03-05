@@ -525,6 +525,8 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
                 echo "check dpkg-scanpackages log output.    " | tee -a "$LOG"
                 echo "Deleting packages.0:                   " | tee -a "$LOG"
                 rm "$REPO_SERIES/$ARCH_FOLDER/Packages.0" 2>> "$LOG"
+                PKEXEC_ERR=1
+                scriptExit
             fi
         fi
     fi
