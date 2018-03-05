@@ -138,7 +138,7 @@ Hint: although theoretically unsafe, avoid the admin prompts with
 [Override policy: allow non-admins to run wasta-offline]
     Identity=unix-group:*
     Action=org.wasta.apps.wasta-offline
-    ResultActive=yes
+    ResultAny=yes
 " | tee -a "$LOG"
 
   echo "-----------------------------------------------------------" | tee -a "$LOG"
