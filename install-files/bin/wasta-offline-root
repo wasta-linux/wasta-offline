@@ -102,7 +102,7 @@ restoreApt () {
         # NOT performing apt-get update, as this could possibly take a long
         #   time: effectively returning to how it was regarding package lists.
     fi
-    rm -f "${APT_LISTS}/*_wasta-offline_*" | tee -a "$LOG"
+    rm -f "${APT_LISTS}/"*_wasta-offline_* | tee -a "$LOG"
 }
 
 # ------------------------------------------------------------------------------
