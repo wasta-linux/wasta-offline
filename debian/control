@@ -35,7 +35,7 @@ Description: Offline software updates and installs.
  Once the apt sources are modified to prefer these wasta-offline
  repositories, a zenity GUI window is kept open while a user performs any
  desired local software updates and installs with other utilities such as
- MintUpdate, Synaptic Package Manager, etc.  The user has the option to 
+ MintUpdate, Synaptic Package Manager, etc.  The user has the option to
  disable internet sources, and ONLY use the offline packages.
  .
  After all wasta-offline local software updates and installs are complete,

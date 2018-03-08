@@ -109,7 +109,7 @@ wasta-offline (0.1.15) precise; urgency=low
 
   * $USER not defined when launching with gksu.  Also no $LOGNAME,
     $(logname), $(whoami), $(who), so needing to adjust
-    12.10+ folder selection to just /media/*/*/wasta-offline  
+    12.10+ folder selection to just /media/*/*/wasta-offline
 
  -- Rik Shaw <rikshaw76@gmail.com>  Thu, 24 Apr 2014 12:11:21 -0500
 
@@ -131,7 +131,7 @@ wasta-offline (0.1.11) precise; urgency=low
     process had already started.
     Added code to run as SU instead of SUDO for regular users.
     Added sync, and a --multiversion flag to dpkg-scanpackages
-    Also cleaned up stuff like spacing, dead code.   
+    Also cleaned up stuff like spacing, dead code.
 
  -- Justin Luth <jluth@mail.com>  Sat, 19 Apr 2014 16:26:28 +0300
 
