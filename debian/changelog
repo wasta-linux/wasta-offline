@@ -1,9 +1,10 @@
-wasta-offline (2.0.0.3) bionic; urgency=medium
+wasta-offline (2.0.0.4) bionic; urgency=medium
 
   * recognize LinuxMint Tara (based on bionic 18.04)
   * suggest ResultAny to allow autolaunch on usb insertion
+  * /var/lib/apt/lists/*_wasta-offline_* wasn't being removed
 
- -- Justin Luth <jluth@mail.com>  Wed, 07 Mar 2018 10:43:02 +0300
+ -- Justin Luth <jluth@mail.com>  Thu, 08 Mar 2018 09:43:24 +0300
 
 wasta-offline (2.0.0.1) bionic; urgency=low
 
