@@ -1,0 +1,365 @@
+#!/bin/bash
+
+# TODO:
+#   - What to do about snaps that require manually plug/slot connections? (Ex.?)
+#   - Determine if snapd is installed first. Offer to install it if not.
+#   - Will a snap updated from offline properly keep config and data files?
+#   - Add ability for user to set the update timer
+#       Provide clear guidance on how to sue it.
+#       This would effectively prevent unapproved updates.
+#       Updates could always be "forced" by the user (aka this script) using
+#       the "snap refresh" command.
+#   - See also: https://forum.snapcraft.io/t/system-options/87
+#           Options: "timer", "metered" connections, # of old versions to "retain"
+
+# ===========================================================================
+# Purpose:
+#   - Provide for installing, updating, and removing snap packages without
+#       an internet connection.
+# Goals:
+#   - Accept an argument indicating a folder where snaps and asserts are kept.
+#   - Guide the user to select such a folder when there is no argument.
+#   - Present a list of snaps to install or update, allowing the user to select
+#       from among them.
+#   - Ensure that the core snap is installed/updated first.
+#   - Ensure that snaps will be able to receive automatic updates, as if they
+#       were installed directly from the snap store.
+#   - Give the user the option of scheduling updates at an obscure time that
+#       would effectively disable them, if desired.
+#   - Allow the user to limit the number of revisions kept to save disk space.
+#   - [...]
+# ===========================================================================
+
+
+# This script needs sudo privileges.
+# ---------------------------------------------------------------------------
+if [[ $(id -u) -ne 0 ]]; then
+    # Simple for now, more elaborate handling later.
+    echo "This script needs to be run with root privileges. Exiting."
+    exit 1
+fi
+
+
+# Set global variables.
+# ---------------------------------------------------------------------------
+USAGE_TEXT="usage: $0 [-h] | [-i] [-s /path/to/dir] [snap name(s)...]"
+HELP_TEXT="$USAGE_TEXT
+
+This app updates snap apps. The updates can come from the internet, a directory,
+or both. If no options or args are passed, update information will be requested
+interactively. If no snap names are given, then updates are attempted for all
+installed snaps.
+    
+    -h                  Show this help text.
+    -i                  Search online for updates.
+    -s  /path/to/dir    Look for downloaded updates in /path/to/dir.
+    snap1 snap2 ...     Space-separated list of snaps to install or update.
+
+"
+
+# Empty intial value for $SNAPS_DIR.
+SNAPS_DIR=''
+
+# Initial value for online source.
+INET=0
+OFFL=0
+
+# Initial value for non-interactive mode.
+AUTO=0
+
+# snapd API variables
+#   docs: https://docs.ubuntu.com/core/en/reference/rest
+SNAPD_API=http://localhost
+SOCKET=/run/snapd.socket
+
+
+# Parse options passed.
+# ---------------------------------------------------------------------------
+while getopts ":his:" opt; do
+    case $opt in
+        h) # help requested
+            echo "$HELP_TEXT"
+            exit 0
+            ;;
+        i) # check internet for updates
+            INET=2
+            ;;
+        s) # source directory option passed
+            SNAPS_DIR=$(realpath "$OPTARG")
+            AUTO=1
+            OFFL=1
+            ;;
+        /?) # invalid option
+            echo "$USAGE_TEXT"
+            exit 1
+    esac
+done
+shift $((OPTIND-1))
+
+# System info
+LOG_DATE=$(date +%F-%H-%M)
+HOST=$(uname -n)
+
+# Starting value for determining update sources.
+SUM=$(($INET + $OFFL))
+
+# Zenity defaults
+ZTITLE="wasta [Snap] Manager"
+ZHEIGHT=200
+ZWIDTH=500
+ZICON=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+ZDEFAULTS=(--title="$ZTITLE" --height="$ZHEIGHT" --width="$ZWIDTH" --window-icon="$ZICON")
+
+
+# Determine update source(s).
+# ---------------------------------------------------------------------------
+# If source(s) not given in options, ask for them interactively.
+while [[ $SUM -eq 0 ]]; do
+
+    text="<big><b>wasta [Snap] Manager</b>
+Control the source and timing of snap package updates.</big>
+
+First choose where you'd like to get updates from.
+
+\tIf <i>Offline</i> is chosen, you will be asked to give the folder
+\tlocation shortly. A wasta [Offline] folder will be automatically
+\tsuggested if found.
+
+\tIf <i>Online</i> is chosen, snap package will be downloaded from
+\tthe Snap Store. Snap pacakges can potentially be hundreds of MB
+\teach for the initial install, but updates only download the
+\tchanges since the installed version and are smaller.
+
+\tIf both <i>Offline</i> and <i>Online</i> are chosen <b>$name</b>
+\twill first install or update snap packages from the offline source,
+\tthen look for additional updates or installs from the Snap store in
+\torder to minimize the amount of data downloaded.
+"
+    list=( "False" "1" "Offline" "wasta [Offline] or local folder" "False" "2" "Online" "Snap store" )
+    sources=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
+        --column='' --column=value --column=Source --column=Description \
+        --hide-column=2 "${list[@]}" \
+        --text="$text" 2>/dev/null)
+
+    if [[ $? -ne 0 ]]; then
+        # User clicked "Cancel". Exit.
+        exit 1
+    fi
+    
+    # Add 0 ouput for unchecked box.
+    if [[ $sources -eq 1 ]]; then
+        sources="$sources|0"
+    elif [[ $sources -eq 2 ]]; then
+        sources="0|$sources"
+    fi
+    
+    # Evaluate user's response.
+    OFFL="${sources%|*}"
+    INET="${sources#*|}"
+    
+    # Re-evaluate $SUM to either exit or restart loop.
+    SUM=$(($INET + $OFFL))
+done
+
+# Ask user for offline folder location if not passed as argument.
+if [[ ! $SNAPS_DIR ]] && [[ $OFFL -eq 1 ]]; then
+    # Determine potential $START_FOLDER.
+    text="Searching system for wasta [Offline] folder..."
+    prog_opts="--progress --pulsate --auto-close --auto-kill --no-cancel"
+    # Using SUDO_USER to try to limit the scope of the 'find' command below.
+    #   Convoluted yet functional zenity subprocess inspired by this article:
+    #   http://wiki.bash-hackers.org/zenity_--progress
+    wo_list=$(
+        sudo -u $SUDO_USER find /media /mnt /home/$SUDO_USER \
+            -name 'wasta-offline' -type d 2>/dev/null | tee >(
+                zenity ${prog_opts[@]} --text="$text" "${ZDEFAULTS[@]}" \
+                    2>/dev/null
+                )
+        )
+    if [[ -z $wo_list ]]; then
+        START_FOLDER=/home/"$SUDO_USER"/
+    else
+        for d in ${wo_list[@]}; do
+            loc_cache=$(find "$d" -maxdepth 1 -name 'local-cache' -type d 2>/dev/null)
+            if [[ $loc_cache =~ ^/media/.*$ ]]; then
+                # Automatically accept 'wasta-offline' folder in /media/...
+                START_FOLDER="$d"
+                # Title for upcoming file chooser dialog.
+                title="Confirm the wasta-offline folder or choose another one"
+                break
+            elif [[ $loc_cache ]]; then
+                # Accept other 'wasta-offlne' folder, but let one in /media/... overrule it.
+                #   In case there are more than two qualifiers, the last one found wins.
+                START_FOLDER="$d"
+                title="Confirm the wasta-offline folder or choose another one"
+            else
+                # No "true" wasta-offline folder found.
+                START_FOLDER=/home/"$SUDO_USER"/
+                title="Choose the offline snaps folder"
+            fi
+        done
+    fi
+    SNAPS_DIR=$(
+        zenity --file-selection --directory \
+            --title="$title" \
+            --filename="$START_FOLDER" 2>/dev/null
+        )
+    if [[ $? -ne 0 ]]; then
+        # User clicked "Cancel". Exit.
+        exit 1
+    fi
+fi
+
+# Need to be able to handle 2 types of SNAPS_DIRs:
+#   1. "wasta-offline" folder -> Set SNAPS_DIR as wasta-offline/local-cache/snaps.
+#   2. any other folder passed -> Set SNAPS_DIR as passed argument.
+if [[ $SNAPS_DIR =~ ^.*wasta-offline$ ]]; then
+    SNAPS_DIR="$SNAPS_DIR"/local-cache/snaps
+    # Make sure SNAPS_DIR exists.
+    mkdir -p "$SNAPS_DIR"
+fi
+
+# Set log location.
+LOG_DIR="$SNAPS_DIR/log/wasta-snap-manager"
+mkdir -p $LOG_DIR
+LOG="$LOG_DIR/$LOG_DATE-$HOST.log"
+
+# Note defined update source(s).
+case $SUM in
+    1) # offline updates only
+        echo "Update source: $SNAPS_DIR."
+        ;;
+    2) # online updates only
+        echo "Update source: Snap store."
+        ;;
+    3) # offline and online updates
+        echo "Update sources: $SNAPS_DIR, then Snap store."
+esac
+
+# Initial log entry
+echo "-------------------------------------------------------" | tee -a "$LOG"
+echo "*** Installing/updating snaps                          " | tee -a "$LOG"
+echo "-------------------------------------------------------" | tee -a "$LOG"
+echo
+
+
+# Determine list of snaps to update or install.
+# ---------------------------------------------------------------------------
+if [[ $@ ]]; then
+    # Including core in case it isn't yet installed or up-to-date.
+    update_list="core $@"
+else # Get list of all installed snaps for updating.
+    update_list=$(snap list | grep -v Name | tr -s ' ' | cut -d' ' -f1)
+fi
+
+# Parse info for snaps to be installed or updated.
+for snap in $update_list; do
+    echo -n "Checking $snap... "
+    
+    # Get local installed status and revision info.
+    inst_rev=0
+    inst_info=$(snap info $snap 2>/dev/null | grep -v disabled | grep 'installed:')
+    if [[ $? -eq 0 ]]; then
+        # Snap is installed.
+        echo "Installed. "
+        inst_status=1
+        inst_rev=$(echo $inst_info | sed -r 's/.*\(([0-9]*)\).*/\1/')
+    else # snap not installed
+        echo "Not installed."
+        inst_status=0
+    fi
+    
+    # If offline mode selected, update/install from $SNAPS_DIR if available.
+    #   If online mode is also chosen, this could lead to a snap being updated
+    #   twice, but that should also reduce the amount needed to be downloaded
+    #   since it will only download delta changes since the offline version.
+    if [[ $OFFL -eq 1 ]]; then
+        # List all revisions of current snap.
+        filepaths=$(find $SNAPS_DIR/${snap}_*.snap 2>/dev/null)
+        ec=$?
+        # Choosing the last entry found ensures the highest revision number.
+        filepath=$(echo "$filepaths" | tail -n1)
+        if [[ $ec -eq 0 ]]; then # snap found in $SNAPS_DIR
+            # Get snap revision #.
+            filename=${filepath##*/}
+            snap_rev=${filename%.*}
+            #snap=${snap_rev%%_*}
+            offl_rev=${snap_rev##*_}
+            if [[ $inst_status -eq 0 ]]; then
+                # Need to install snap.
+                echo -en "\tInstalling from local source... "
+                snap ack $SNAPS_DIR/${snap}_${offl_rev}.assert
+                #--------------------------------------------------------------
+                # Unfortunately, to find out if a downloaded snap requires 
+                # --classic confinement there seems to be two options:
+                #       1. Install the snap first and let it fail, grep for
+                #           'classic' in the error output
+                #       2. Mount the snap file, cat /meta/snap.yaml, grep
+                #           'confinement: classic', umount the image.
+                # -------------------------------------------------------------
+                # Install snap. Capture stderr in case --classic flag in needed.
+                stderr=$(snap install $SNAPS_DIR/${snap}_${offl_rev}.snap 2>&1 >/dev/null)
+                if [[ $? -gt 0 ]]; then # failed to install
+                    if [[ $(echo "$stderr" | grep 'classic') ]]; then
+                        # Attempt install again with --classic flag.
+                        snap install $SNAPS_DIR/${snap}_${offl_rev}.snap --classic
+                        if [[ $? -ne 0 ]]; then
+                            # Unhandled error.
+                            continue
+                        fi
+                    else
+                        # Some other install error.
+                        echo -e "\tError: skipping install from local source. "
+                        continue
+                    fi
+                    
+                fi
+                inst_status=1
+                inst_rev=$offl_rev
+            else
+                if [[ $offl_rev -gt $inst_rev ]]; then
+                    # TODO: Test if this actually works when user data is involved.
+                    echo -en "\tUpdating from local source..."
+                    snap ack "$SNAPS_DIR/${snap}_${offl_rev}.assert"
+                    snap install "$SNAPS_DIR/${snap}_${offl_rev}.snap"
+                else
+                    echo -en "\tNo local updates available. "
+                fi
+            fi
+        else # not found in $SNAPS_DIR
+            echo -en "\tNo local updates available. "
+        fi
+    fi
+
+    # If online mode is selected, update/install from internet if available.
+    if [[ $INET -eq 2 ]]; then
+        # Get latest stable revision number online.
+        inet_info=$(snap info "$snap" | grep ' stable:')
+        ec=$?
+        # Determine confinement and install/update snap.
+        if [[ $ec -eq 0 ]]; then # snap found online
+            # Determine if snap requires classic confinement (ala skype)
+            if [[ $(echo "$inet_info" | grep classic) ]]; then
+                confinement="--classic"
+            else
+                confinement=''
+            fi
+            if [[ $inst_status -eq 1 ]]; then
+                # Snap is already installed. It just needs to be "refreshed".
+                echo "Updating from the Snap store..."
+                snap refresh "$snap"
+            else
+                # Snap is not installed.
+                echo "Installing from the Snap store..."
+                snap install "$snap" "$confinement"
+            fi
+        else
+            # Snap not found. No internet connection? Snap not available?
+            echo "Error: $snap not found."
+            exit 1
+        fi
+    else
+        echo # adds final \n to output
+    fi
+done
+exit 0
