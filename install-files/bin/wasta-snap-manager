@@ -67,11 +67,6 @@ OFFL=0
 # Initial value for non-interactive mode.
 AUTO=0
 
-# snapd API variables
-#   docs: https://docs.ubuntu.com/core/en/reference/rest
-SNAPD_API=http://localhost
-SOCKET=/run/snapd.socket
-
 
 # Parse options passed.
 # ---------------------------------------------------------------------------
@@ -134,7 +129,9 @@ First choose where you'd like to get updates from.
 \twill first install or update snap packages from the offline source,
 \tthen look for additional updates or installs from the Snap store in
 \torder to minimize the amount of data downloaded.
-"
+
+<b>Choose the source(s) for updating or installing snap packages:</b>"
+
     list=( "False" "1" "Offline" "wasta [Offline] or local folder" "False" "2" "Online" "Snap store" )
     sources=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
         --column='' --column=value --column=Source --column=Description \
@@ -210,6 +207,17 @@ if [[ ! $SNAPS_DIR ]] && [[ $OFFL -eq 1 ]]; then
     fi
 fi
 
+# Set log location.
+#   Needs to happen before $SNAPS_DIR adjustment below.
+#   Can't guarantee a $SNAPS_DIR if source is online only.
+if [[ $SNAPS_DIR ]]; then
+    LOG_DIR="$SNAPS_DIR/log/wasta-snap-manager"
+else
+    LOG_DIR=/home/$SUDO_USER/.log/wasta-snap-manager
+fi
+mkdir -p "$LOG_DIR"
+LOG="$LOG_DIR/$LOG_DATE-$HOST.log"
+
 # Need to be able to handle 2 types of SNAPS_DIRs:
 #   1. "wasta-offline" folder -> Set SNAPS_DIR as wasta-offline/local-cache/snaps.
 #   2. any other folder passed -> Set SNAPS_DIR as passed argument.
@@ -219,53 +227,63 @@ if [[ $SNAPS_DIR =~ ^.*wasta-offline$ ]]; then
     mkdir -p "$SNAPS_DIR"
 fi
 
-# Set log location.
-LOG_DIR="$SNAPS_DIR/log/wasta-snap-manager"
-mkdir -p $LOG_DIR
-LOG="$LOG_DIR/$LOG_DATE-$HOST.log"
-
-# Note defined update source(s).
-case $SUM in
-    1) # offline updates only
-        echo "Update source: $SNAPS_DIR."
-        ;;
-    2) # online updates only
-        echo "Update source: Snap store."
-        ;;
-    3) # offline and online updates
-        echo "Update sources: $SNAPS_DIR, then Snap store."
-esac
-
 # Initial log entry
 echo "-------------------------------------------------------" | tee -a "$LOG"
 echo "*** Installing/updating snaps                          " | tee -a "$LOG"
 echo "-------------------------------------------------------" | tee -a "$LOG"
-echo
+
+# Note defined update source(s).
+echo "Update source(s):"                    | tee -a "$LOG"
+case $SUM in
+    1) # offline updates only
+        echo "$SNAPS_DIR"                   | tee -a "$LOG"
+        ;;
+    2) # online updates only
+        echo "Snap store."                  | tee -a "$LOG"
+        ;;
+    3) # offline and online updates
+        echo "$SNAPS_DIR, then Snap store." | tee -a "$LOG"
+esac
+echo | tee -a "$LOG"
 
 
 # Determine list of snaps to update or install.
 # ---------------------------------------------------------------------------
 if [[ $@ ]]; then
-    # Including core in case it isn't yet installed or up-to-date.
-    update_list="core $@"
+    # Including core snaps in case they aren't yet installed or up-to-date.
+    update_list="core core18 $@"
 else # Get list of all installed snaps for updating.
-    update_list=$(snap list | grep -v Name | tr -s ' ' | cut -d' ' -f1)
+    update_list=$(snap list | grep -v Name | grep -v disabled \
+        | tr -s ' ' | cut -d' ' -f1)
 fi
 
 # Parse info for snaps to be installed or updated.
 for snap in $update_list; do
-    echo -n "Checking $snap... "
+    echo -n "Checking $snap... " | tee -a "$LOG"
     
     # Get local installed status and revision info.
     inst_rev=0
-    inst_info=$(snap info $snap 2>/dev/null | grep -v disabled | grep 'installed:')
-    if [[ $? -eq 0 ]]; then
+
+    # Command block around command substitution allows to send the output of 
+    #   the command to both stdout (via /dev/fd/5) AND assign it to a variable.
+    #   https://stackoverflow.com/questions/12451278/capture-stdout-to-a-variable-but-still-display-it-in-the-console
+    {
+    inst_info=$(
+        # Using tee to send /dev/fd/1 both to zenity progress and /dev/fd/5.
+        snap info $snap 2>/dev/null | grep -v disabled | grep 'installed:' \
+        | tee >(zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" \
+            --text="Checking $snap install status..." 2>/dev/null) \
+            /dev/fd/5
+        )
+    # Redirect /dev/fd/5 to /dev/fd/1 to "export" variables from command block.
+    } 5>&1
+    
+    if [[ $inst_info ]]; then
         # Snap is installed.
-        echo "Installed. "
         inst_status=1
         inst_rev=$(echo $inst_info | sed -r 's/.*\(([0-9]*)\).*/\1/')
     else # snap not installed
-        echo "Not installed."
+        echo "not installed." | tee -a "$LOG"
         inst_status=0
     fi
     
@@ -277,17 +295,20 @@ for snap in $update_list; do
         # List all revisions of current snap.
         filepaths=$(find $SNAPS_DIR/${snap}_*.snap 2>/dev/null)
         ec=$?
+
         # Choosing the last entry found ensures the highest revision number.
         filepath=$(echo "$filepaths" | tail -n1)
         if [[ $ec -eq 0 ]]; then # snap found in $SNAPS_DIR
             # Get snap revision #.
             filename=${filepath##*/}
             snap_rev=${filename%.*}
-            #snap=${snap_rev%%_*}
             offl_rev=${snap_rev##*_}
             if [[ $inst_status -eq 0 ]]; then
+                # Command block for zenity progress.
+                {
+                echo "#Installing $snap from $SNAPS_DIR... "
                 # Need to install snap.
-                echo -en "\tInstalling from local source... "
+                echo -en "\tInstalling $snap from local source... " | tee -a "$LOG"
                 snap ack $SNAPS_DIR/${snap}_${offl_rev}.assert
                 #--------------------------------------------------------------
                 # Unfortunately, to find out if a downloaded snap requires 
@@ -297,37 +318,52 @@ for snap in $update_list; do
                 #       2. Mount the snap file, cat /meta/snap.yaml, grep
                 #           'confinement: classic', umount the image.
                 # -------------------------------------------------------------
-                # Install snap. Capture stderr in case --classic flag in needed.
-                stderr=$(snap install $SNAPS_DIR/${snap}_${offl_rev}.snap 2>&1 >/dev/null)
+                # Install snap. Check change to see if error due to --classic flag.
+                snap install $SNAPS_DIR/${snap}_${offl_rev}.snap
                 if [[ $? -gt 0 ]]; then # failed to install
-                    if [[ $(echo "$stderr" | grep 'classic') ]]; then
+                    change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
+                        | cut -d' ' -f1)
+                    # TODO: Does this work for other locales?
+                    needs_classic=$(snap change "$change" | tail -n2 | head -1 \
+                        | grep 'requires classic confinement') 
+                    if [[ $needs_classic ]]; then
                         # Attempt install again with --classic flag.
+                        echo "$needs_classic" | tee -a "$LOG"
                         snap install $SNAPS_DIR/${snap}_${offl_rev}.snap --classic
                         if [[ $? -ne 0 ]]; then
                             # Unhandled error.
+                            echo -e "\tUnhandled error. Skipped." | tee -a "$LOG"
                             continue
+                        else
+                            echo -e "\t$snap installed." | tee -a "$LOG"
                         fi
                     else
                         # Some other install error.
-                        echo -e "\tError: skipping install from local source. "
+                        echo "Error: skipping. " | tee -a "$LOG"
                         continue
                     fi
-                    
                 fi
+                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
                 inst_status=1
                 inst_rev=$offl_rev
             else
+                {
+                echo "#Updating $snap from $SNAPS_DIR... "
                 if [[ $offl_rev -gt $inst_rev ]]; then
                     # TODO: Test if this actually works when user data is involved.
-                    echo -en "\tUpdating from local source..."
+                    echo -en "\tUpdating $snap from local source..." | tee -a "$LOG"
                     snap ack "$SNAPS_DIR/${snap}_${offl_rev}.assert"
+                    # TODO: Does this work with a --classic snap update? (skype, snapcraft)
                     snap install "$SNAPS_DIR/${snap}_${offl_rev}.snap"
                 else
-                    echo -en "\tNo local updates available. "
+                    echo -en "\tNo local updates available. " | tee -a "$LOG"
+                    # Give enough time for the user to see it looking for an update.
+                    sleep 1.5
                 fi
+                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
             fi
         else # not found in $SNAPS_DIR
-            echo -en "\tNo local updates available. "
+            echo -en "\tNo local updates available. " | tee -a "$LOG"
         fi
     fi
 
@@ -344,22 +380,35 @@ for snap in $update_list; do
             else
                 confinement=''
             fi
+
             if [[ $inst_status -eq 1 ]]; then
+                {
+                echo "#Updating $snap from Snap store... "
                 # Snap is already installed. It just needs to be "refreshed".
-                echo "Updating from the Snap store..."
+                echo "Updating $snap from the Snap store..." | tee -a "$LOG"
                 snap refresh "$snap"
+                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
             else
+                {
                 # Snap is not installed.
-                echo "Installing from the Snap store..."
-                snap install "$snap" "$confinement"
+                echo "#Installing $snap from the Snap store..."
+                echo "Installing $snap from the Snap store..." | tee -a "$LOG"
+                if [[ $confinement ]]; then
+                    snap install "$snap" "$confinement"
+                else
+                    snap install "$snap"
+                fi
+                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
             fi
         else
             # Snap not found. No internet connection? Snap not available?
-            echo "Error: $snap not found."
+            echo "Error: $snap not found." | tee -a "$LOG"
             exit 1
         fi
     else
-        echo # adds final \n to output
+        echo | tee -a "$LOG" # adds final \n to output
     fi
 done
+
+
 exit 0
