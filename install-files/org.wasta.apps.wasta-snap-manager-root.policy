@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+<policyconfig>
+
+  <action id="org.wasta.apps.wasta-snap-manager-root">
+    <description>Manage .snap packages while offline</description>
+    <message>Authentication is required to run Wasta [Snap] Manager</message>
+    <vendor>Wasta-Linux</vendor>
+    <vendor_url>sites.google.com/site/wastalinux/</vendor_url>
+    <icon_name>wasta-offline</icon_name>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/wasta-snap-manager-root</annotate>
+  </action>
+
+</policyconfig>
