@@ -84,6 +84,7 @@ APT_LISTS="/var/lib/apt/lists"
 
 LOG_DATE=$(date +%F-%H-%M)
 HOST=$(uname -n)
+BASE=$(realpath $(dirname $0))
 
 # ------------------------------------------------------------------------------
 # Function: wait_for_locked_apt
@@ -105,7 +106,7 @@ wait_for_locked_apt () {
             --title="wasta [Offline]: wait for apt list lock to finish" \
             --pulsate --auto-close --width=500 --height=100 \
             --no-cancel \
-            --window-icon=info
+            --window-icon=info 2>/dev/null
   fi
 }
 
@@ -149,8 +150,26 @@ Hint: although theoretically unsafe, avoid the admin prompts with
 if [ $PKEXEC_ERR -gt 0 ]; then
   zenity --text-info --title="wasta [Offline] Error: Log" --width=650 \
     --height=500 --no-wrap --filename="$LOG" --font="Ubuntu Mono" \
-    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+    2>/dev/null
  fi
+
+    # Update snap packages
+    # -----------------------------------------------------------------------
+    # If /usr/bin/snap exists, then snapd is installed.
+    #   wasta-offline-snap-manager will use its own log file, but there should at
+    #   least be some mention of it in the wasta-offline log.
+    if [[ -x /usr/bin/snap ]]; then
+    echo | tee -a "$LOG"
+        echo "-------------------------------------------------------" | tee -a "$LOG"
+        echo "*** Updating snap packages                             " | tee -a "$LOG"
+        echo "-------------------------------------------------------" | tee -a "$LOG"
+        echo | tee -a "$LOG"
+        echo $(date +%T) $HOST "wasta-snap-manager started." | tee -a "$LOG"
+        echo "Its log file can be found in $WO_LOC/log/wasta-snap-manager" | tee -a "$LOG"
+        echo | tee -a "$LOG"
+        "$BASE"/wasta-snap-manager $NETMODE -s "$WO_LOC"
+    fi
 
   exit 0
 }
@@ -223,7 +242,7 @@ updates or installs on this computer?</b>
 
 <small><i><b>NOTE:</b> If you want to add a computer's local software
 cache to a 'wasta-offline' folder, instead use
-'wasta-offline-setup'.</i></small>"
+'wasta-offline-setup'.</i></small>" 2>/dev/null
     if [ "$?" -ne 0 ]
     then
         # User didn't say yes: exit
@@ -270,7 +289,7 @@ start folder: $START_FOLDER"
     FOLDER_SEL=$(zenity --file-selection \
         --directory --filename="$START_FOLDER" \
         --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
-        --title="Select a 'wasta-offline' Folder")
+        --title="Select a 'wasta-offline' Folder" 2>/dev/null)
     if [[ "$FOLDER_SEL" == *"wasta-offline" ]]
     then
         # valid wasta-offline folder
@@ -285,7 +304,7 @@ wasta-offline location: $WO_LOC"
           --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
           --text="<b>Selected Folder:</b> $FOLDER_SEL\n
 This folder is not a <b>'wasta-offline'</b> folder.\n
-wasta [Offline] will now exit.\n\n"
+wasta [Offline] will now exit.\n\n" 2>/dev/null
         scriptExit
     fi
 fi
@@ -297,7 +316,7 @@ then
         --title="wasta [Offline]: Exiting" \
         --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
         --text "No <b>'wasta-offline'<b> folder has been set.\n
-wasta [Offline] will now exit.\n\n"
+wasta [Offline] will now exit.\n\n" 2>/dev/null
     scriptExit
 fi
 
@@ -354,13 +373,14 @@ updates or installs from a <i>'wasta-offline'</i>  folder.
 
 <b>SELECT the wasta [Offline] software mode:</b>" --radiolist \
     --column "               " --column "Value" --column "Software Mode" \
-    --hide-column=2 "${LIST[@]}")
+    --hide-column=2 "${LIST[@]}" 2>/dev/null)
 
 case "$MODE" in
 
 "OFFLINE")
     echo | tee -a "$LOG"
     echo "OFFLINE Mode selected" | tee -a "$LOG"
+    NETMODE=''
     # REPLACE sources.list, disable sources.list.d folder
     wait_for_locked_apt
     pkexec wasta-offline-root offlineApt "$WO_LOC" "$LOG_DATE"
@@ -373,6 +393,7 @@ case "$MODE" in
 "HYBRID")
     echo | tee -a "$LOG"
     echo "OFFLINE AND INTERNET Mode selected" | tee -a "$LOG"
+    NETMODE="-i"
 ;;
 
 *)
@@ -506,7 +527,8 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
                 --title="wasta [Offline]: Generating Software Package List" \
                 --pulsate --auto-close --width=500 --height=200 \
                 --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
-                --text="Generating software list for wasta [Offline]...\n\n\n\n"
+                --text="Generating software list for wasta [Offline]...\n\n\n\n" \
+                2>/dev/null
 
             echo | tee -a "$LOG"
             echo "---------------------------------------------------" | tee -a "$LOG"
@@ -563,7 +585,7 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
 Check the logs ($LOG)
 for Package errors.
 
-Internet and mirror repositories will still work, so not aborting."
+Internet and mirror repositories will still work, so not aborting." 2>/dev/null
     fi
 else
     echo | tee -a "$LOG"
@@ -668,7 +690,8 @@ if [ "${MIRROR_BASE}" ]; then
     ) | zenity --progress --title="wasta [Offline]" \
         --text="Adding wasta [Offline] ${MIRROR_BASE} repositories...\n\n\n\n\n" \
         --pulsate --auto-close --no-cancel --width=500 --height=200 \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        2>/dev/null
 
     if [ "$?" -ne 0 ]
     then
@@ -707,7 +730,8 @@ echo "Info: apt-get update took approximately  $COUNT seconds." | tee -a "$LOG"
 ) | zenity --progress --title="wasta [Offline]: Updating Software Lists" \
         --text="Updating software lists...\n\n\n\n\n" \
         --pulsate --auto-close --width=500 --height=200 \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        2>/dev/null
 
 if [ "$?" -ne 0 ]
 then
@@ -735,7 +759,7 @@ to complete any software updates or installs.
 <b>******************************************************</b>\n
 
 <b>AFTER</b> all software updates and installs are completed,
-click <b>Finished</b> to exit wasta [Offline]."
+click <b>Finished</b> to exit wasta [Offline]." 2>/dev/null
 
 # ------------------------------------------------------------------------------
 # Finished
