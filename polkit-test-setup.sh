@@ -34,6 +34,13 @@ elif [[ $1 == '-d' ]]; then
         rm "$POLKIT"/"$action"
         echo "symlink at $POLKIT/$action removed"
     fi
+elif [[ $1 == '-h' ]]; then
+    echo "Usage: $0 [-h | -d]"
+    echo "Simulate installation by creating symlinks for $bin"
+    echo "and $action."
+    echo "(These links will be removed if the -d option is passed.)"
+    echo "The corresponding wasta-offline script still needs to be run explicitly;"
+    echo "i.e. \$ $BASE/install-files/bin/wasta-offline."
 fi
 
 exit 0
