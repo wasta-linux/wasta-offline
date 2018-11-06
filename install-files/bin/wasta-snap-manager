@@ -98,12 +98,12 @@ ZDEFAULTS=(
 # ---------------------------------------------------------------------------
 ask_offline_folder() {
     # Ask user for offline folder location if not passed as argument.
-    snaps_dir="$1"
-    offl="$2"
+    offl="$1"
+    snaps_dir="$2"
 
     if [[ ! $snaps_dir ]] && [[ $offl -eq 1 ]]; then
         # Determine potential $START_FOLDER.
-        text="\n\nSearching system for wasta [Offline] folder...\n"
+        text="\n\n\nSearching system for wasta [Offline] folder..."
         prog_opts=(--progress --pulsate --auto-close --auto-kill --no-cancel)
         # Convoluted yet functional zenity subprocess inspired by this article:
         #   http://wiki.bash-hackers.org/zenity_--progress
@@ -113,7 +113,7 @@ ask_offline_folder() {
                     zenity "${prog_opts[@]}" --text="$text" "${ZDEFAULTS[@]}" \
                         --height=250 2>/dev/null
                     )
-            )
+        )
         if [[ -z $wo_list ]]; then
             START_FOLDER=/home/"$USER"/
         else
@@ -140,10 +140,10 @@ ask_offline_folder() {
         SNAPS_DIR=$(
             zenity --file-selection --directory --title="$title" \
                 --filename="$START_FOLDER" 2>/dev/null
-            )
+        )
         if [[ $? -ne 0 ]]; then
             # User clicked "Cancel". Exit.
-            exit 1
+            window_home "0"
         fi
     fi
 }
@@ -152,10 +152,11 @@ create_log() {
     # Set log location.
     #   Needs to happen before $SNAPS_DIR adjustment below.
     #   Can't guarantee a $SNAPS_DIR if source is online only.
-    snaps_dir="$1"
+    sum="$1"
+    SNAPS_DIR="$2"
 
-    if [[ $snaps_dir ]]; then
-        LOG_DIR="$snaps_dir/log/wasta-snap-manager"
+    if [[ $SNAPS_DIR ]]; then
+        LOG_DIR="$SNAPS_DIR/log/wasta-snap-manager"
     else
         LOG_DIR=/home/$USER/.log/wasta-snap-manager
     fi
@@ -165,10 +166,10 @@ create_log() {
     # Need to be able to handle 2 types of SNAPS_DIRs:
     #   1. "wasta-offline" folder -> Set SNAPS_DIR as wasta-offline/local-cache/snaps.
     #   2. any other folder passed -> Set SNAPS_DIR as passed argument.
-    if [[ $snaps_dir =~ ^.*wasta-offline$ ]]; then
-        snaps_dir="$SNAPS_DIR"/local-cache/snaps
+    if [[ $SNAPS_DIR =~ ^.*wasta-offline$ ]]; then
+        SNAPS_DIR="$SNAPS_DIR"/local-cache/snaps
         # Make sure SNAPS_DIR exists.
-        mkdir -p "$snaps_dir"
+        mkdir -p "$SNAPS_DIR"
     fi
 
     # Initial log entry
@@ -178,15 +179,15 @@ create_log() {
 
     # Note defined update source(s).
     echo "Update source(s):"                    | tee -a "$LOG"
-    case $SUM in
+    case $sum in
         1) # offline updates only
-            echo "$snaps_dir"                   | tee -a "$LOG"
+            echo "$SNAPS_DIR"                   | tee -a "$LOG"
             ;;
         2) # online updates only
             echo "Snap store."                  | tee -a "$LOG"
             ;;
         3) # offline and online updates
-            echo "$snaps_dir, then Snap store." | tee -a "$LOG"
+            echo "$SNAPS_DIR, then Snap store." | tee -a "$LOG"
     esac
     echo | tee -a "$LOG"
 }
@@ -194,10 +195,17 @@ create_log() {
 list_installed_snaps() {
     # Get list of snaps currently installed. Create global associative array
     #   of installed snaps and their revision numbers: $snaps_installed
-    installed_list=$(snap list | grep -v Name)
-    echo -e "Installed snaps:\n$installed_list\n" >> "$LOG"
 
-    # Add these snap names to $snaps_local dictionary.
+    # Delete previous $snaps_installed.
+    unset snaps_installed[@]
+
+    # Recreate updated $snaps_installed.
+    installed_list=$(snap list | grep -v Name)
+    if [[ -w $LOG ]]; then
+        echo -e "Installed snaps:\n$installed_list\n" | tee -a "$LOG"
+    fi
+
+    # Add these snap names to $snaps_installed dictionary.
     declare -Ag snaps_installed
     while read -r line; do
         name=$(echo "$line" | tr -s ' ' | cut -d' ' -f1)
@@ -273,16 +281,16 @@ show_installed_snaps() {
     # Show zenity --checklist for user to choose updates/installs.
     text="<big><b>\
 Installed snap packages.</b></big>\n
-You can uninstall snap packages by deselecting them and clicking \"OK\"\n"
+To uninstall snap packages, deselect them and click \"OK\"\n"
     kept_snaps=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
         --title="Wasta [Snap] Manager" \
         --column='' --column="Snap" --column="Revision" \
         "${installed_snaps[@]}" --separator='\n' \
-        --text="$text" 2>/dev/null
+        --text="$text" --cancel-label="Back" 2>/dev/null
         )
     if [[ $? -eq 1 ]]; then
-        # User clicked Cancel.
-        exit 1
+        # User clicked [Back].
+        window_home "0"
     fi
 
     # Compare $installed_snaps with $kept_snaps to produce $snaps_to_remove
@@ -305,8 +313,8 @@ remove_snaps() {
     # Remove snaps.
     for name in ${to_remove[@]}; do
         # Output to progress dialog and to $LOG.
-        echo "#<big><b>Removing snaps.</b></big>\n\n\n\n$name..."
-        echo -en "\tRemoving $name... " | tee -a "$LOG"
+        echo "#Removing snaps.\n\n\n$name..."
+        #echo -en "\tRemoving $name... " | tee -a "$LOG"
 
         pkexec "$AS_ROOT" snap remove "$name"
         if [[ $? -eq 126 ]]; then
@@ -344,7 +352,8 @@ show_offline_updates() {
 These offline snap packages are available for this computer.</b></big>
 Available updates are already selected. New packages can be installed by selecting them as well."
         selected_snaps=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
-            --title="Wasta [Snap] Manager" --ok-label="Add/Update" \
+            --title="Wasta [Snap] Manager" \
+            --ok-label="Add/Update" --cancel-label="Back" \
             --column='' --column="Snap" --column="Installed Revision" --column="Available Revision" \
             "${available_snaps[@]}" --separator='\n' \
             --text="$text" 2>/dev/null
@@ -353,24 +362,24 @@ Available updates are already selected. New packages can be installed by selecti
         if [[ $ec -eq 1 ]]; then
             # User clicked Cancel. Go to Home Window.
             window_home "0"
-            return
         fi
     else
         text="<big><b>No updated snaps are available.</b></big>"
         zenity --info "${ZDEFAULTS[@]}" --width=350 --height=150 \
                 --text="$text" 2>/dev/null
-        exit 0
+        window_home "0"
     fi
 }
 
 install_snaps() {
     declare -n available="$1"
     declare -n to_install="$2"
+    snaps_dir="$3"
 
     # Elevate to root privileges before installing.
     if [[ ! $to_install ]]; then
         # No installs or updates selected.
-        exit 0
+        window_home "0"
     fi
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
@@ -382,10 +391,10 @@ install_snaps() {
         rev="${available[$name]}"
 
         # Output to progress dialog and to $LOG.
-        echo "#Installing/updating snaps from:\n\t$SNAPS_DIR\n\n$name..."
-        echo -en "\tInstalling $name from offline source... " | tee -a "$LOG"
+        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\n$name..."
+        echo -en "Installing $name from offline source... " | tee -a "$LOG"
         # Acknowledge assertion.
-        pkexec "$AS_ROOT" snap ack "$SNAPS_DIR/${name}_${rev}.assert" 2>"$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
         #--------------------------------------------------------------
         # Unfortunately, to find out if a downloaded snap requires
         # --classic confinement there seems to be two options:
@@ -395,7 +404,7 @@ install_snaps() {
         #           'confinement: classic', umount the image.
         # -------------------------------------------------------------
         # Install snap. Check change to see if error due to --classic flag.
-        pkexec "$AS_ROOT" snap install "$SNAPS_DIR/${name}_${rev}.snap" 2>"$LOG"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" #2>"$LOG"
         if [[ $? -gt 0 ]]; then # failed to install
             change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
                 | cut -d' ' -f1)
@@ -405,19 +414,21 @@ install_snaps() {
             if [[ $needs_classic ]]; then
                 # Attempt install again with --classic flag.
                 echo "$needs_classic" | tee -a "$LOG"
-                pkexec "$AS_ROOT" snap install $SNAPS_DIR/${name}_${rev}.snap --classic
+                pkexec "$AS_ROOT" snap install $snaps_dir/${name}_${rev}.snap --classic
                 if [[ $? -ne 0 ]]; then
                     # Unhandled error.
-                    echo -e "\tUnhandled error. Skipped." | tee -a "$LOG"
+                    echo -e "error, skipped." | tee -a "$LOG"
                     continue
                 else
-                    echo -e "\t$snap installed." | tee -a "$LOG"
+                    echo -e "installed." | tee -a "$LOG"
                 fi
             else
                 # Some other install error.
-                echo "Error: skipping. " | tee -a "$LOG"
+                echo -e "error, skipped. " | tee -a "$LOG"
                 continue
             fi
+        else
+            echo -e "installed." | tee -a "$LOG"
         fi
     done
 }
@@ -425,6 +436,7 @@ install_snaps() {
 window_home() {
     # If source(s) not given in options, ask for them interactively.
     sum="$1"
+    snaps_dir="$2"
 
     if [[ $sum -eq 0 ]]; then
 
@@ -450,16 +462,15 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
     if [[ $ec -eq 1 ]] && [[ $sources ]]; then
         if [[ $sources == 'Remove...' ]]; then
             # User clicked [Remove...].
-            echo "User clicked [Remove...]."
-            exit 1
+            window_remove_snaps
         elif [[ $sources == 'Settings...' ]]; then
             # User clicked [Settings...].
-            echo "User clicked [Settings...]."
-            exit 1
+            echo "User clicked [Settings...]. Not yet implemented. Back to Home."
+            window_home "0"
         fi
     elif [[ $ec -eq 1 ]]; then
         # User clicked [Quit] or the [x].
-        exit 1
+        exit 0
     fi
     # User clicked [Add/Update...]; $ec was 0
 
@@ -480,15 +491,15 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
     INET="${sources#*|}"
     SUM=$(($INET + $OFFL))
 
-    ask_offline_folder "$SNAPS_DIR" "$OFFL"
-    create_log "$SNAPS_DIR" "$SUM"
+    ask_offline_folder "$OFFL" "$snaps_dir"
+    create_log "$SUM" "$SNAPS_DIR"
     window_add_or_update_snaps "$SNAPS_DIR" "$SUM"
 }
 
 window_settings() {
     # https://forum.snapcraft.io/t/system-options/87
     echo "<Settings window not yet implemented>"
-    window_home
+    window_home "0" "$SNAPS_DIR"
     return
     # Elevate to root privileges before opening window.
     pkexec "$AS_ROOT" elevate
@@ -580,12 +591,12 @@ Check the box to apply suggested values. Uncheck it to restore defaults."
         --height=350 --title="Wasta [Snap] Manager" \
         --column='' --column="Setting" --column="Description" \
         --column="Current" --column="Suggested" \
-        "${settings[@]}" --separator='\n' \
+        "${settings[@]}" --separator='\n' --cancel-label="Back" \
         --text="$text" 2>/dev/null
         )
     if [[ $? -eq 1 ]]; then
-        # User clicked Cancel.
-        exit 1
+        # User clicked [Back].
+        window_home "0"
     fi
     echo "${override_defaults[@]}"
 
@@ -668,10 +679,9 @@ window_add_or_update_snaps() {
 
         # Install offline snaps; show progress window.
         prog_opts=(--progress --pulsate --auto-close --no-cancel)
-        install_snaps "snaps_available" "selected_snaps" \
+        install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
             | zenity "${prog_opts[@]}" "${ZDEFAULTS[@]}" --height=250 \
                 --text="Waiting for authorization..." 2>/dev/null
-
     fi
 
     # Refresh snaps if $INET=2; show progress window.
@@ -681,6 +691,9 @@ window_add_or_update_snaps() {
 
     # Send status message back to Home Window.
     status="Adding and/or updating snaps completed."
+
+    # Return to Offline Updates Window.
+    window_add_or_update_snaps "$snaps_dir" "$install_mode"
 }
 
 # Show window of installed snaps & allow for their removal.
@@ -688,6 +701,7 @@ window_remove_snaps() {
     # This function takes no arguments. It lets the user uncheck installed
     #   snaps in order to uninstall them. It can also be used to simply show
     #   a list of installed snaps.
+    LOG='' # not going to log snap removals
     list_installed_snaps # -> $snaps_installed
     show_installed_snaps "snaps_installed" # -> $snaps_to_remove
 
@@ -696,6 +710,9 @@ window_remove_snaps() {
     remove_snaps "snaps_to_remove" \
         | zenity "${prog_opts[@]}" "${ZDEFAULTS[@]}" --height=250 \
             --text="Waiting for authorization..." 2>/dev/null
+
+    # Return to Remove Snaps Window.
+    window_remove_snaps
 }
 
 idea_for_avoiding_subshells() {
@@ -716,14 +733,14 @@ idea_for_avoiding_subshells() {
 # Main processing.
 # ---------------------------------------------------------------------------
 
-# If in "auto" mode, only provide for installing or updating snaps.
+# If folder argument is passed, go directly to installing or updating snaps.
 if [[ $OFFL -eq 1 ]]; then
-    create_log "$SNAPS_DIR"
+    create_log "$SUM" "$SNAPS_DIR"
     window_add_or_update_snaps "$SNAPS_DIR" "$INET"
     exit 0
 else
     # Launch main window.
-    window_home "$SUM"
+    window_home "$SUM" "$SNAPS_DIR"
 fi
 
 exit 0
