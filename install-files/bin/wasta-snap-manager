@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # TODO:
-#   - Provide output confirming when a snap is installed.
-#   - What to do about snaps that require manually plug/slot connections? (Ex.?)
-#   - Add ability for user manage snapd settings.
+#   - Add ability for user to manage snapd settings.
 
 # ===========================================================================
 # Purpose:
@@ -85,12 +83,15 @@ SUM=$(($INET + $OFFL))
 ZTITLE="Wasta [Snap] Manager"
 ZHEIGHT=450
 ZWIDTH=650
-ZICON=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png
+ZICON=/usr/share/icons/hicolor/512x512/apps/wasta-offline.png
 ZICNM=wasta-offline
 ZDEFAULTS=(
     --title="$ZTITLE" --height="$ZHEIGHT" --width="$ZWIDTH" \
-    --window-icon="$ZICON" --icon-name="$ZICNM"
-    )
+    --window-icon="$ZICON" #--icon-name="$ZICNM"
+)
+ZPROGDEFS=(
+    --progress --pulsate --height=200 --auto-close
+)
 
 
 # ---------------------------------------------------------------------------
@@ -104,14 +105,13 @@ ask_offline_folder() {
     if [[ ! $snaps_dir ]] && [[ $offl -eq 1 ]]; then
         # Determine potential $START_FOLDER.
         text="\n\n\nSearching system for wasta [Offline] folder..."
-        prog_opts=(--progress --pulsate --auto-close --auto-kill --no-cancel)
         # Convoluted yet functional zenity subprocess inspired by this article:
         #   http://wiki.bash-hackers.org/zenity_--progress
         wo_list=$(
             find /media /mnt /home/"$USER" -not -path '*/.*' \
                 -name 'wasta-offline' -type d 2>/dev/null | tee >(
-                    zenity "${prog_opts[@]}" --text="$text" "${ZDEFAULTS[@]}" \
-                        --height=250 2>/dev/null
+                    zenity --text="$text" "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" \
+                        --auto-kill --no-cancel 2>/dev/null
                     )
         )
         if [[ -z $wo_list ]]; then
@@ -240,7 +240,7 @@ list_available_snaps() {
             for r in ${snaps_avail_all[$name]}; do
                 echo $r
             done | sort -nr | head -1
-            )
+        )
         snaps_available["$name"]="$top"
     done
 }
@@ -287,7 +287,7 @@ To uninstall snap packages, deselect them and click \"OK\"\n"
         --column='' --column="Snap" --column="Revision" \
         "${installed_snaps[@]}" --separator='\n' \
         --text="$text" --cancel-label="Back" 2>/dev/null
-        )
+    )
     if [[ $? -eq 1 ]]; then
         # User clicked [Back].
         window_home "0"
@@ -312,9 +312,8 @@ remove_snaps() {
 
     # Remove snaps.
     for name in ${to_remove[@]}; do
-        # Output to progress dialog and to $LOG.
-        echo "#Removing snaps.\n\n\n$name..."
-        #echo -en "\tRemoving $name... " | tee -a "$LOG"
+        # Output to progress dialog.
+        echo "#Removing snaps.\n\n\nRemoving $name..."
 
         pkexec "$AS_ROOT" snap remove "$name"
         if [[ $? -eq 126 ]]; then
@@ -357,7 +356,7 @@ Available updates are already selected. New packages can be installed by selecti
             --column='' --column="Snap" --column="Installed Revision" --column="Available Revision" \
             "${available_snaps[@]}" --separator='\n' \
             --text="$text" 2>/dev/null
-            )
+        )
         ec=$?
         if [[ $ec -eq 1 ]]; then
             # User clicked Cancel. Go to Home Window.
@@ -391,7 +390,7 @@ install_snaps() {
         rev="${available[$name]}"
 
         # Output to progress dialog and to $LOG.
-        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\n$name..."
+        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
         echo -en "Installing $name from offline source... " | tee -a "$LOG"
         # Acknowledge assertion.
         pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
@@ -431,6 +430,7 @@ install_snaps() {
             echo -e "installed." | tee -a "$LOG"
         fi
     done
+    echo | tee -a "$LOG"
 }
 
 window_home() {
@@ -454,7 +454,7 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
             --hide-column=2 "${list[@]}" \
             --ok-label="Add/Update..." --cancel-label="Quit" \
             --extra-button="Remove..." --extra-button="Settings..." \
-            --text="$text" --height=250 2>/dev/null)
+            --text="$text" --height=200 2>/dev/null)
         ec=$?
     fi
 
@@ -465,35 +465,39 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
             window_remove_snaps
         elif [[ $sources == 'Settings...' ]]; then
             # User clicked [Settings...].
-            echo "User clicked [Settings...]. Not yet implemented. Back to Home."
-            window_home "0"
+            window_settings
         fi
     elif [[ $ec -eq 1 ]]; then
         # User clicked [Quit] or the [x].
         exit 0
+    elif [[ $ec -eq 0 ]]; then
+        # User clicked [Add/Update...]
+
+        # Restart window if no sources selected.
+        if [[ ! $sources ]]; then
+            window_home "0"
+        fi
+
+        # Add 0 ouput for unchecked boxes.
+        if [[ "$sources" -eq 1 ]]; then
+            sources="$sources|0"
+        elif [[ "$sources" -eq 2 ]]; then
+            sources="0|$sources"
+        fi
+
+        # Evaluate user's response.
+        OFFL="${sources%|*}"
+        INET="${sources#*|}"
+        SUM=$(($INET + $OFFL))
+
+        ask_offline_folder "$OFFL" "$snaps_dir"
+        create_log "$SUM" "$SNAPS_DIR"
+        window_add_or_update_snaps "$SNAPS_DIR" "$SUM"
+    else
+        # Unknown error.
+        echo "Unhandled error. Exiting." | tee -a "$LOG"
+        exit 1
     fi
-    # User clicked [Add/Update...]; $ec was 0
-
-    # Restart window if no sources selected.
-    if [[ ! $sources ]]; then
-        window_home "0"
-    fi
-
-    # Add 0 ouput for unchecked boxes.
-    if [[ "$sources" -eq 1 ]]; then
-        sources="$sources|0"
-    elif [[ "$sources" -eq 2 ]]; then
-        sources="0|$sources"
-    fi
-
-    # Evaluate user's response.
-    OFFL="${sources%|*}"
-    INET="${sources#*|}"
-    SUM=$(($INET + $OFFL))
-
-    ask_offline_folder "$OFFL" "$snaps_dir"
-    create_log "$SUM" "$SNAPS_DIR"
-    window_add_or_update_snaps "$SNAPS_DIR" "$SUM"
 }
 
 window_settings() {
@@ -593,7 +597,7 @@ Check the box to apply suggested values. Uncheck it to restore defaults."
         --column="Current" --column="Suggested" \
         "${settings[@]}" --separator='\n' --cancel-label="Back" \
         --text="$text" 2>/dev/null
-        )
+    )
     if [[ $? -eq 1 ]]; then
         # User clicked [Back].
         window_home "0"
@@ -678,19 +682,24 @@ window_add_or_update_snaps() {
         show_offline_updates "snaps_installed" "snaps_available" "snaps_updatable" # -> $selected_snaps
 
         # Install offline snaps; show progress window.
-        prog_opts=(--progress --pulsate --auto-close --no-cancel)
         install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
-            | zenity "${prog_opts[@]}" "${ZDEFAULTS[@]}" --height=250 \
+            | zenity "${ZPROGDEFS[@]}" "${ZDEFAULTS[@]}" --no-cancel \
                 --text="Waiting for authorization..." 2>/dev/null
     fi
 
     # Refresh snaps if $INET=2; show progress window.
     if [[ $install_mode -gt 1 ]]; then
-        echo "<Run snap refresh> with zenity progress window."
-    fi
+        #last=$(snap change --last=refresh)
+        textA="Updating snaps from the Snap store."
+        textB="\n\tThis might take awhile on a slow connection.\n\n"
+        echo "$textA" | tee -a "$LOG"
+        # TODO: Need some kind of indication of progress?
+        pkexec "$AS_ROOT" snap refresh 2>&1 | tee >(zenity "${ZDEFAULTS[@]}" \
+            "${ZPROGDEFS[@]}" --text="$textA$textB" 2>/dev/null)
 
-    # Send status message back to Home Window.
-    status="Adding and/or updating snaps completed."
+        # Return to main window.
+        window_home "0"
+    fi
 
     # Return to Offline Updates Window.
     window_add_or_update_snaps "$snaps_dir" "$install_mode"
@@ -706,9 +715,8 @@ window_remove_snaps() {
     show_installed_snaps "snaps_installed" # -> $snaps_to_remove
 
     # Remove snaps; show progress window.
-    prog_opts=(--progress --pulsate --auto-close --no-cancel)
     remove_snaps "snaps_to_remove" \
-        | zenity "${prog_opts[@]}" "${ZDEFAULTS[@]}" --height=250 \
+        | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
             --text="Waiting for authorization..." 2>/dev/null
 
     # Return to Remove Snaps Window.
@@ -734,10 +742,10 @@ idea_for_avoiding_subshells() {
 # ---------------------------------------------------------------------------
 
 # If folder argument is passed, go directly to installing or updating snaps.
+#   E.g., as launched from wasta-offline.
 if [[ $OFFL -eq 1 ]]; then
     create_log "$SUM" "$SNAPS_DIR"
     window_add_or_update_snaps "$SNAPS_DIR" "$INET"
-    exit 0
 else
     # Launch main window.
     window_home "$SUM" "$SNAPS_DIR"
@@ -747,171 +755,57 @@ exit 0
 
 #############################################################################
 #############################################################################
+# Send command output to both zenity and variable.
+# https://stackoverflow.com/questions/12451278/capture-stdout-to-a-variable-but-still-display-it-in-the-console
+{
+    variable=$(
+        snap refresh $snap | tee >(zenity "${ZPROGDEFS[@]}" "${ZDEFAULTS[@]}" \
+            2>/dev/null) /dev/fd5
+    )
+# Redirect /dev/fd5 to /dev/fd1 to "export" $variable out of commmand block.
+} 5>&1
+echo "$variable"
+
+
 # The rest is previous code still being worked back in.
 #
 
-# Determine list of snaps to update or install.
-# ---------------------------------------------------------------------------
-if [[ $@ ]]; then
-    # Including core snaps in case they aren't yet installed or up-to-date.
-    update_list="core core18 $@"
-else # Get list of all installed snaps for updating.
-    update_list=$(snap list | grep -v Name | grep -v disabled \
-        | tr -s ' ' | cut -d' ' -f1)
-fi
-
-# Parse info for snaps to be installed or updated.
-for snap in $update_list; do
-    echo -n "Checking $snap... " | tee -a "$LOG"
-
-    # Get local installed status and revision info.
-    inst_rev=0
-
-    # Command block around command substitution allows to send the output of
-    #   the command to both stdout (via /dev/fd/5) AND assign it to a variable.
-    #   https://stackoverflow.com/questions/12451278/capture-stdout-to-a-variable-but-still-display-it-in-the-console
-    {
-    inst_info=$(
-        # Using tee to send /dev/fd/1 both to zenity progress and /dev/fd/5.
-        snap info $snap 2>/dev/null | grep -v disabled | grep 'installed:' \
-        | tee >(zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" \
-            --text="Checking $snap install status..." 2>/dev/null) \
-            /dev/fd/5
-        )
-    # Redirect /dev/fd/5 to /dev/fd/1 to "export" variables from command block.
-    } 5>&1
-
-    if [[ $inst_info ]]; then
-        # Snap is installed.
-        inst_status=1
-        inst_rev=$(echo $inst_info | sed -r 's/.*\(([0-9]*)\).*/\1/')
-    else # snap not installed
-        echo "not installed." | tee -a "$LOG"
-        inst_status=0
-    fi
-
-    # If offline mode selected, update/install from $SNAPS_DIR if available.
-    #   If online mode is also chosen, this could lead to a snap being updated
-    #   twice, but that should also reduce the amount needed to be downloaded
-    #   since it will only download delta changes since the offline version.
-    if [[ $OFFL -eq 1 ]]; then
-        # List all revisions of current snap.
-        filepaths=$(find $SNAPS_DIR/${snap}_*.snap 2>/dev/null)
-        ec=$?
-
-        # Choosing the last entry found ensures the highest revision number.
-        filepath=$(echo "$filepaths" | tail -n1)
-        if [[ $ec -eq 0 ]]; then # snap found in $SNAPS_DIR
-            # Get snap revision #.
-            filename=${filepath##*/}
-            snap_rev=${filename%.*}
-            offl_rev=${snap_rev##*_}
-            if [[ $inst_status -eq 0 ]]; then
-                # Command block for zenity progress.
-                {
-                echo "#Installing $snap from $SNAPS_DIR... "
-                # Need to install snap.
-                echo -en "\tInstalling $snap from local source... " | tee -a "$LOG"
-                snap ack $SNAPS_DIR/${snap}_${offl_rev}.assert
-                #--------------------------------------------------------------
-                # Unfortunately, to find out if a downloaded snap requires
-                # --classic confinement there seems to be two options:
-                #       1. Install the snap first and let it fail, grep for
-                #           'classic' in the error output
-                #       2. Mount the snap file, cat /meta/snap.yaml, grep
-                #           'confinement: classic', umount the image.
-                # -------------------------------------------------------------
-                # Install snap. Check change to see if error due to --classic flag.
-                snap install $SNAPS_DIR/${snap}_${offl_rev}.snap
-                if [[ $? -gt 0 ]]; then # failed to install
-                    change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
-                        | cut -d' ' -f1)
-                    # TODO: Does this work for other locales?
-                    needs_classic=$(snap change "$change" | tail -n2 | head -1 \
-                        | grep 'requires classic confinement')
-                    if [[ $needs_classic ]]; then
-                        # Attempt install again with --classic flag.
-                        echo "$needs_classic" | tee -a "$LOG"
-                        snap install $SNAPS_DIR/${snap}_${offl_rev}.snap --classic
-                        if [[ $? -ne 0 ]]; then
-                            # Unhandled error.
-                            echo -e "\tUnhandled error. Skipped." | tee -a "$LOG"
-                            continue
-                        else
-                            echo -e "\t$snap installed." | tee -a "$LOG"
-                        fi
-                    else
-                        # Some other install error.
-                        echo "Error: skipping. " | tee -a "$LOG"
-                        continue
-                    fi
-                fi
-                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
-                inst_status=1
-                inst_rev=$offl_rev
-            else
-                {
-                echo "#Updating $snap from $SNAPS_DIR... "
-                if [[ $offl_rev -gt $inst_rev ]]; then
-                    # TODO: Test if this actually works when user data is involved.
-                    echo -en "\tUpdating $snap from local source..." | tee -a "$LOG"
-                    snap ack "$SNAPS_DIR/${snap}_${offl_rev}.assert"
-                    # TODO: Does this work with a --classic snap update? (skype, snapcraft)
-                    snap install "$SNAPS_DIR/${snap}_${offl_rev}.snap"
-                else
-                    echo -en "\tNo local updates available. " | tee -a "$LOG"
-                    # Give enough time for the user to see it looking for an update.
-                    sleep 1.5
-                fi
-                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
-            fi
-        else # not found in $SNAPS_DIR
-            echo -en "\tNo local updates available. " | tee -a "$LOG"
-        fi
-    fi
-
-    # If online mode is selected, update/install from internet if available.
-    if [[ $INET -eq 2 ]]; then
-        # Get latest stable revision number online.
-        inet_info=$(snap info "$snap" | grep ' stable:')
-        ec=$?
-        # Determine confinement and install/update snap.
-        if [[ $ec -eq 0 ]]; then # snap found online
-            # Determine if snap requires classic confinement (ala skype)
-            if [[ $(echo "$inet_info" | grep classic) ]]; then
-                confinement="--classic"
-            else
-                confinement=''
-            fi
-
-            if [[ $inst_status -eq 1 ]]; then
-                {
-                echo "#Updating $snap from Snap store... "
-                # Snap is already installed. It just needs to be "refreshed".
-                echo "Updating $snap from the Snap store..." | tee -a "$LOG"
-                snap refresh "$snap"
-                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
-            else
-                {
-                # Snap is not installed.
-                echo "#Installing $snap from the Snap store..."
-                echo "Installing $snap from the Snap store..." | tee -a "$LOG"
-                if [[ $confinement ]]; then
-                    snap install "$snap" "$confinement"
-                else
-                    snap install "$snap"
-                fi
-                } | zenity --progress --pulsate --auto-close "${ZDEFAULTS[@]}" 2>/dev/null
-            fi
+# If online mode is selected, update/install from internet if available.
+if [[ $INET -eq 2 ]]; then
+    # Get latest stable revision number online.
+    inet_info=$(snap info "$snap" | grep ' stable:')
+    ec=$?
+    # Determine confinement and install/update snap.
+    if [[ $ec -eq 0 ]]; then # snap found online
+        # Determine if snap requires classic confinement (ala skype)
+        if [[ $(echo "$inet_info" | grep classic) ]]; then
+            confinement="--classic"
         else
-            # Snap not found. No internet connection? Snap not available?
-            echo "Error: $snap not found." | tee -a "$LOG"
-            exit 1
+            confinement=''
+        fi
+
+        if [[ $inst_status -eq 1 ]]; then
+            {
+            echo "#Updating $snap from Snap store... "
+            # Snap is already installed. It just needs to be "refreshed".
+            echo "Updating $snap from the Snap store..." | tee -a "$LOG"
+            snap refresh "$snap"
+            } | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" 2>/dev/null
+        else
+            {
+            # Snap is not installed.
+            echo "#Installing $snap from the Snap store..."
+            echo "Installing $snap from the Snap store..." | tee -a "$LOG"
+            if [[ $confinement ]]; then
+                snap install "$snap" "$confinement"
+            else
+                snap install "$snap"
+            fi
+            } | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" 2>/dev/null
         fi
     else
-        echo | tee -a "$LOG" # adds final \n to output
+        # Snap not found. No internet connection? Snap not available?
+        echo "Error: $snap not found." | tee -a "$LOG"
+        exit 1
     fi
-done
-
-
-exit 0
+fi
