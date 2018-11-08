@@ -6,6 +6,4 @@ elif [[ $1 == 'snap' ]]; then
     snap ${@:2}
 elif [[ $1 == 'kill' ]]; then
     kill ${@:2}
-elif [[ $1 == 'zenity' ]]; then
-    zenity ${@:2}
 fi
