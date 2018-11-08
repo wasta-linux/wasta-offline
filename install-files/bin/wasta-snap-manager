@@ -500,25 +500,25 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
     fi
 }
 
+# Show window of snapd settings that are recommended to be modified by the user.
 window_settings() {
-    # https://forum.snapcraft.io/t/system-options/87
-    echo "<Settings window not yet implemented>"
-    window_home "0" "$SNAPS_DIR"
-    return
+    # snapd settings:
+    #   https://forum.snapcraft.io/t/system-options/87
+
     # Elevate to root privileges before opening window.
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
         # User cancelled authorization window.
-        exit 1
+        window_home "0"
     fi
 
     # Build list of current settings. This list includes:
-    #   - handling of metered connections, $m_handling
-    #   - current connection metered status, $c_metered
-    #   - snap automatic refresh timer, $r_timer
-    #   - number of total snap revisions to keep, $r_kept
+    #   - handling of metered connections, $m_handling_def
+    #   - current connection metered status, $c_metered_def
+    #   - snap automatic refresh timer, $r_timer_def
+    #   - number of total snap revisions to keep, $r_kept_def
 
-    # Record defaults.
+    # Note defaults and suggested values.
     m_handling_def=null
     m_handling_sug=hold
     c_metered_def='unknown'
@@ -530,67 +530,110 @@ window_settings() {
 
     # Get current settings.
     pat='s/.*dev\s([0-9a-zA-Z]*).*/\1/'
-    inet_device=$(
-        ip route | grep 'default via' | head -1 | sed -r "$pat"
-    )
-    current_connection=$(
-        nmcli -t -f GENERAL.CONNECTION --mode tabular dev show "$inet_device"
-    )
-    metered_status=$(
-        nmcli -f connection.metered connection show "$current_connection" \
-        | tr -s ' ' | cut -d' ' -f2
+    all_inet_devices=$(
+        ip addr show | grep -Eo '[a-z0-9]{6,}:' | grep -Eo '[a-z0-9]{6,}'
     )
 
-    m_handling=$(pkexec "$AS_ROOT" snap get system refresh.metered 2>/dev/null)
-    if [[ ! $m_handling ]]; then
-        m_handling=null
-    fi
-    c_metered="$metered_status"
-    r_timer=$(snap refresh --time | head -1 | sed -r 's/^timer: (.*)$/\1/')
-    r_kept=$(pkexec "$AS_ROOT" snap get system refresh.retain 2>/dev/null)
-    if [[ ! $r_kept ]]; then
-        r_kept=3
-    fi
+    inet_connection=$(
+        for d in ${all_inet_devices[@]}; do
+            c=$(nmcli -t -f GENERAL.CONNECTION --mode tabular dev show "$d")
+            [[ $c ]] && echo "$c"
+        done
+    )
 
-    # Build list for zenity checklist window.
-    settings=()
-    # Add $c_metered details to the list.
-    desc="Set current connection as metered"
-    if [[ $c_metered == $c_metered_def ]]; then
-        settings+=( "False" )
+    if [[ $inet_connection ]]; then
+        metered_status=$(
+            nmcli -f connection.metered connection show "$inet_connection" \
+            | tr -s ' ' | cut -d' ' -f2
+        )
     else
-        settings+=( "True" )
+        metered_status='disconnected'
     fi
-    settings+=( "connection.metered" "$desc" "$c_metered" "$c_metered_sug" )
+
+    # Create a pipe to get pkexec output without a subshell. This is done to
+    #   avoid multiple authentications for command substitutions that would
+    #   otherwise be run in subshells and therefore not "stick" for later
+    #   pkexec calls.
+    mkfifo /tmp/wfifo
+    exec 5<> /tmp/wfifo
+
+    # Set settings variables.
+    {
+        pkexec "$AS_ROOT" snap get system refresh.metered 2>/dev/null
+        echo "@"
+     } 1>&5
+    read -u5 m_handling
+    if [[ $m_handling == '@' ]]; then
+        # Command had no output. Pipe is now empty.
+        m_handling=null
+    else
+        # Command output was read into $m_handling, now remove '@' from pipe.
+        read -u5 ignored
+    fi
+
+    c_metered="$metered_status"
+
+    r_timer=$(snap refresh --time | head -1 | sed -r 's/^timer: (.*)$/\1/')
+
+    # Run command block. Send output to /tmp/wfifo via fd5.
+    {
+        pkexec "$AS_ROOT" snap get system refresh.retain 2>/dev/null
+        echo "@"
+    } 1>&5
+    # Get output data from /tmp/wfifo.
+    read -u5 r_kept
+    if [[ $r_kept == '@' ]]; then
+        # Command had no output. Pipe is now empty.
+        r_kept=3
+    else
+        # Command output was read into $m_handling, now remove '@' from pipe.
+        read -u5 ignored
+    fi
+
+    # Initialize list for zenity checklist window.
+    settings=()
+
+    # Add $c_metered details to the list if connected.
+    desc="Set current connection as metered"
+    if [[ $c_metered == 'disconnected' ]]; then
+        settings+=()
+    elif [[ $c_metered == $c_metered_sug ]]; then
+        settings+=( "True" "connection.metered" "$desc" "$c_metered" "$c_metered_sug" )
+    else
+        settings+=( "False" "connection.metered" "$desc" "$c_metered" "$c_metered_sug" )
+    fi
+
     # Add $m_handling details.
     desc="Auto-refresh on metered connections"
-    if [[ $m_handling == $m_handling_def ]]; then
-        settings+=( "False" )
-    else
+    if [[ $m_handling == $m_handling_sug ]]; then
         settings+=( "True" )
+    else
+        settings+=( "False" )
     fi
     settings+=( "refresh.metered" "$desc" "$m_handling" "$m_handling_sug" )
+
     # Add $r_timer details.
     desc="Auto-refresh time window"
-    if [[ $r_timer == $r_timer_def ]]; then
-        settings+=( "False" )
-    else
+    if [[ $r_timer == $r_timer_sug ]]; then
         settings+=( "True" )
+    else
+        settings+=( "False" )
     fi
     settings+=( "refresh.timer" "$desc" "$r_timer" "$r_timer_sug" )
+
     # Add $r_kept details.
     desc="Number of snap revisions kept"
-    if [[ $r_kept == $r_kept_def ]]; then
-        settings+=( "False" )
-    else
+    if [[ $r_kept == $r_kept_sug ]]; then
         settings+=( "True" )
+    else
+        settings+=( "False" )
     fi
     settings+=( "refresh.retain" "$desc" "$r_kept" "$r_kept_sug" )
 
     # Show zenity checklist window.
     text="<big><b>Manage snapd settings.</b></big>\n
-Default settings are unchecked.
-Check the box to apply suggested values. Uncheck it to restore defaults."
+Settings corresponding to suggested values are checked.
+Uncheck the box to restore defaults."
     override_defaults=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
         --height=350 --title="Wasta [Snap] Manager" \
         --column='' --column="Setting" --column="Description" \
@@ -599,72 +642,87 @@ Check the box to apply suggested values. Uncheck it to restore defaults."
         --text="$text" 2>/dev/null
     )
     if [[ $? -eq 1 ]]; then
-        # User clicked [Back].
+        # User clicked [Back]; remove temporary pipe and go to $window_home.
+        exec 5>&-
+        rm /tmp/wfifo
         window_home "0"
     fi
-    echo "${override_defaults[@]}"
 
-    # Apply settings.
+    # Remove temporary pipe.
+    exec 5>&-
+    rm /tmp/wfifo
+
+    # Apply default settings.
+    # ---------------------------------
+    echo "Initializing settings..."
+    # It's up to NetworkManager to determine whether a connection is metered.
+    #   However, the user can also explicity set a connection as metered.
+    echo "Set connection.metered as default [$c_metered_def]."
+    if [[ $inet_connection ]]; then
+        nmcli connection modify "$inet_connection" connection.metered "$c_metered_def"
+    fi
+
+    # Whether or not snapd auto-refreshes snaps on any metered connection.
+    echo "Set refresh.metered as default [$m_handling_def]."
+    pkexec "$AS_ROOT" snap set system refresh.metered="$m_handling_def"
+
+    # Affect the timing and frequency of snap refreshes.
+    echo "Set refresh.timer as default [$r_timer_def]."
+    pkexec "$AS_ROOT" snap set system refresh.timer="$r_timer_def"
+
+    # Choose number of snap revisions to keep.
+    echo "Set refresh.retain as default [$r_kept_def]."
+    pkexec "$AS_ROOT" snap set system refresh.retain="$r_kept_def"
+
+    # Apply overridden settings.
+    # ---------------------------------
     setting_names=( "connection.metered" "refresh.metered" "refresh.timer" "refresh.retain" )
-    # TODO: There's a syntax error somewhere in here, but I don't know where.
-    #for s in "${setting_names[@]}"; do
-    #    for o in "${override_defaults[@]}"; do
-    #        if [[ $s == 'connection.metered' ]]; then
-    #            if [[ $s == $o ]]; then
-    #                echo "Set $s to $c_metered_sug"
-    #            else
-    #                continue
-    #            fi
-    #        elif [[ $s == 'refresh.metered' ]]; then
-    #            if [[ $s == $o ]]; then
-    #                echo "Set $s to $m_handling_sug"
-    #            else
-    #                continue
-    #            fi
-    #        elif [[ $s == 'refresh.timer' ]]; then
-    #            if [[ $s == $o ]]; then
-    #                echo "Set $s to $r_timer_sug"
-    #            else
-    #                continue
-    #            fi
-    #        elif [[ $s == 'refresh.retain' ]]; then
-    #            if [[ $s == $o ]]; then
-    #                echo "Set $s to $r_kept_sug"
-    #            else
-    #                continue
-    #            fi
-    #        else
-    #            continue
-    #        fi
-    #    done
-    #done
+    for s in ${setting_names[@]}; do
+        for o in ${override_defaults[@]}; do
+            if [[ $s == 'connection.metered' ]]; then
+                if [[ $s == $o ]]; then
+                    echo "Set $s to $c_metered_sug"
+                    # Set current connection to $c_metered_sug.
+                    echo "Setting $s to $c_metered_sug..."
+                    nmcli connection modify "$inet_connection" connection.metered "$c_metered_sug"
+                else
+                    continue
+                fi
+            elif [[ $s == 'refresh.metered' ]]; then
+                if [[ $s == $o ]]; then
+                    echo "Set $s to $m_handling_sug"
+                    # Set refresh.metered to $m_handling_sug.
+                    echo "Setting $s to $m_handling_sug..."
+                    pkexec "$AS_ROOT" snap set system refresh.metered="$m_handling_sug"
+                else
+                    continue
+                fi
+            elif [[ $s == 'refresh.timer' ]]; then
+                if [[ $s == $o ]]; then
+                    echo "Set $s to $r_timer_sug"
+                    # Set refresh.timer to $r_timer_sug.
+                    echo "Setting $s to $r_timer_sug..."
+                    pkexec "$AS_ROOT" snap set system refresh.timer="$r_timer_sug"
+                else
+                    continue
+                fi
+            elif [[ $s == 'refresh.retain' ]]; then
+                if [[ $s == $o ]]; then
+                    echo "Set $s to $r_kept_sug"
+                    # Keep $r_kept_sug number of snap revisions.
+                    echo "Setting $s to $r_kept_sug..."
+                    pkexec "$AS_ROOT" snap set system refresh.retain="$r_kept_sug"
+                else
+                    continue
+                fi
+            else
+                continue
+            fi
+        done
+    done
 
-    exit 0
-    # Set current connection to metered.
-    nmcli connection modify "$current_connection" connection.metered yes
-    # Revert $current_connection to default "unknown" metered setting.
-    #nmcli connection modify "$current_connection" connection.metered unknown
-
-    # "Hold" (i.e "stop") refreshes when on metered connnections.
-    #   It's up to NetworkManager to determine whether a connection is metered.
-    #   Of course, the user can also explicity set a connection as metered.
-    #pkexec "$AS_ROOT" snap set system refresh.metered=hold
-    # Revert to default setting.
-    #pkexec "$AS_ROOT" snap set system refresh.metered=null
-
-    # Effectively block refreshes by setting the refresh timer to sun5,02:00.
-    #   This refers to the last Sunday of the month at 2am.
-    timer=$(snap refresh --time | head -1 | sed -r 's/^timer: (.*)$/\1/')
-    timer_default='00:00~24:00/4'
-    timer_off='sun5,02:00'
-    #pkexec "$AS_ROOT" snap set system refresh.timer="$timer_off"
-    # Revert to default setting.
-    #pkexec "$AS_ROOT" snap set system refresh.timer="$timer_default"
-
-    # Choose number of previous snap revisions to keep. Default is 3.
-    #pkexec "$AS_ROOT" snap set system refresh.retain=2
-    # Revert to default setting.
-    #pkexec "$AS_ROOT" snap set system refresh.retain=3
+    # Refresh the window to show changes.
+    window_settings
 }
 
 # Show window of available snaps to update or install.
@@ -723,19 +781,6 @@ window_remove_snaps() {
     window_remove_snaps
 }
 
-idea_for_avoiding_subshells() {
-    echo "Take a look at the comments."
-    #bar () { echo "$BASH_SUBSHELL $BASHPID"; }
-    #mkfifo /tmp/myfifo
-    #exec 3<> /tmp/myfifo
-    #bar 1>&3
-    #read -u3 a
-    #echo $a
-    #0 8215
-    #exec 3>&-
-    #rm /tmp/myfifo
-}
-
 
 # ---------------------------------------------------------------------------
 # Main processing.
@@ -752,60 +797,3 @@ else
 fi
 
 exit 0
-
-#############################################################################
-#############################################################################
-# Send command output to both zenity and variable.
-# https://stackoverflow.com/questions/12451278/capture-stdout-to-a-variable-but-still-display-it-in-the-console
-{
-    variable=$(
-        snap refresh $snap | tee >(zenity "${ZPROGDEFS[@]}" "${ZDEFAULTS[@]}" \
-            2>/dev/null) /dev/fd5
-    )
-# Redirect /dev/fd5 to /dev/fd1 to "export" $variable out of commmand block.
-} 5>&1
-echo "$variable"
-
-
-# The rest is previous code still being worked back in.
-#
-
-# If online mode is selected, update/install from internet if available.
-if [[ $INET -eq 2 ]]; then
-    # Get latest stable revision number online.
-    inet_info=$(snap info "$snap" | grep ' stable:')
-    ec=$?
-    # Determine confinement and install/update snap.
-    if [[ $ec -eq 0 ]]; then # snap found online
-        # Determine if snap requires classic confinement (ala skype)
-        if [[ $(echo "$inet_info" | grep classic) ]]; then
-            confinement="--classic"
-        else
-            confinement=''
-        fi
-
-        if [[ $inst_status -eq 1 ]]; then
-            {
-            echo "#Updating $snap from Snap store... "
-            # Snap is already installed. It just needs to be "refreshed".
-            echo "Updating $snap from the Snap store..." | tee -a "$LOG"
-            snap refresh "$snap"
-            } | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" 2>/dev/null
-        else
-            {
-            # Snap is not installed.
-            echo "#Installing $snap from the Snap store..."
-            echo "Installing $snap from the Snap store..." | tee -a "$LOG"
-            if [[ $confinement ]]; then
-                snap install "$snap" "$confinement"
-            else
-                snap install "$snap"
-            fi
-            } | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" 2>/dev/null
-        fi
-    else
-        # Snap not found. No internet connection? Snap not available?
-        echo "Error: $snap not found." | tee -a "$LOG"
-        exit 1
-    fi
-fi
