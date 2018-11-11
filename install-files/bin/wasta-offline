@@ -154,24 +154,35 @@ if [ $PKEXEC_ERR -gt 0 ]; then
     2>/dev/null
  fi
 
-    # Update snap packages
-    # -----------------------------------------------------------------------
+  exit 0
+}
+
+# ------------------------------------------------------------------------------
+# Function: update_snaps
+#
+#   Update snap packages if snapd exists on the system.
+# ------------------------------------------------------------------------------
+update_snaps() {
     # If /usr/bin/snap exists, then snapd is installed.
-    #   wasta-offline-snap-manager will use its own log file, but there should at
-    #   least be some mention of it in the wasta-offline log.
-    if [[ -x /usr/bin/snap ]]; then
-    echo | tee -a "$LOG"
-        echo "-------------------------------------------------------" | tee -a "$LOG"
-        echo "*** Updating snap packages                             " | tee -a "$LOG"
-        echo "-------------------------------------------------------" | tee -a "$LOG"
-        echo | tee -a "$LOG"
-        echo $(date +%T) $HOST "wasta-snap-manager started." | tee -a "$LOG"
-        echo "Its log file can be found in $WO_LOC/log/wasta-snap-manager" | tee -a "$LOG"
-        echo | tee -a "$LOG"
-        "$BASE"/wasta-snap-manager $NETMODE -s "$WO_LOC"
+
+    # Set update mode.
+    if [[ $MODE == 'HYBRID' ]]; then
+        NETMODE=''
+    else
+        NETMODE="-i"
     fi
 
-  exit 0
+    # wasta-offline-snap-manager will use its own log file, but there should at
+    #   least be some mention of it in the wasta-offline log.
+    echo | tee -a "$LOG"
+    echo "-------------------------------------------------------" | tee -a "$LOG"
+    echo "*** Updating snap packages                             " | tee -a "$LOG"
+    echo "-------------------------------------------------------" | tee -a "$LOG"
+    echo | tee -a "$LOG"
+    echo $(date +%T) $HOST "wasta-snap-manager started." | tee -a "$LOG"
+    echo "Its log file can be found in $WO_LOC/log/wasta-snap-manager" | tee -a "$LOG"
+    echo | tee -a "$LOG"
+    "$BASE"/wasta-snap-manager $NETMODE -s "$WO_LOC"
 }
 
 # ------------------------------------------------------------------------------
@@ -375,12 +386,16 @@ updates or installs from a <i>'wasta-offline'</i>  folder.
     --column "               " --column "Value" --column "Software Mode" \
     --hide-column=2 "${LIST[@]}" 2>/dev/null)
 
+# Update snaps via wasta-snap-manager if snapd is installed.
+if [[ -x /usr/bin/snap ]]; then
+    update_snaps
+fi
+
 case "$MODE" in
 
 "OFFLINE")
     echo | tee -a "$LOG"
     echo "OFFLINE Mode selected" | tee -a "$LOG"
-    NETMODE=''
     # REPLACE sources.list, disable sources.list.d folder
     wait_for_locked_apt
     pkexec wasta-offline-root offlineApt "$WO_LOC" "$LOG_DATE"
@@ -393,7 +408,6 @@ case "$MODE" in
 "HYBRID")
     echo | tee -a "$LOG"
     echo "OFFLINE AND INTERNET Mode selected" | tee -a "$LOG"
-    NETMODE="-i"
 ;;
 
 *)
