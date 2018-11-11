@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# TODO:
-#   - Add ability for user to manage snapd settings.
-
 # ===========================================================================
 # Purpose:
 #   - Provide for installing, updating, and removing snap packages without
@@ -90,7 +87,7 @@ ZDEFAULTS=(
     --window-icon="$ZICON" #--icon-name="$ZICNM"
 )
 ZPROGDEFS=(
-    --progress --pulsate --height=200 --auto-close
+    --progress --pulsate --height=175 --auto-close
 )
 
 
@@ -741,7 +738,7 @@ window_add_or_update_snaps() {
 
         # Install offline snaps; show progress window.
         install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
-            | zenity "${ZPROGDEFS[@]}" "${ZDEFAULTS[@]}" --no-cancel \
+            | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
                 --text="Waiting for authorization..." 2>/dev/null
     fi
 
