@@ -166,7 +166,7 @@ update_snaps() {
     # If /usr/bin/snap exists, then snapd is installed.
 
     # Set update mode.
-    if [[ $MODE == 'HYBRID' ]]; then
+    if [[ $MODE == 'OFFLINE' ]]; then
         NETMODE=''
     else
         NETMODE="-i"
