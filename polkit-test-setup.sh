@@ -12,17 +12,23 @@ installs=install-files
 BIN=/usr/bin
 POLKIT=/usr/share/polkit-1/actions
 bin=wasta-snap-manager-root
+bin2=wasta-snap-manager-2
 action=org.wasta.apps.wasta-snap-manager-root.policy
+action2=org.wasta.apps.wasta-snap-manager-2.policy
 
 if [[ ! $1 ]]; then
     # Create symlink for binary.
     cd "$BIN"
-    cp -s "$BASE"/"$installs"/bin/"$bin" .
-    echo "symlink for $BASE/$installs/bin/$bin created at $BIN"
+    if [[ ! -e ./$bin ]]; then
+        cp -s "$BASE"/"$installs"/bin/"$bin" .
+        echo "symlink for $BASE/$installs/bin/$bin created at $BIN"
+    fi
     # Create symlink for polkit file.
     cd "$POLKIT"
-    cp -s "$BASE"/"$installs"/"$action" .
-    echo "symlink for $BASE/$installs/$action created at $POLKIT"
+    if [[ ! -e ./$action ]]; then
+        cp -s "$BASE"/"$installs"/"$action" .
+        echo "symlink for $BASE/$installs/$action created at $POLKIT"
+    fi
 
 elif [[ $1 == '-d' ]]; then
     # Remove symlinks.
