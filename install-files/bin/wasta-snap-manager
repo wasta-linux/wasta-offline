@@ -375,12 +375,12 @@ install_snaps() {
     # Elevate to root privileges before installing.
     if [[ ! $to_install ]]; then
         # No installs or updates selected.
-        window_home "0"
+        return 0
     fi
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
         # Installation cancelled.
-        exit 1
+        return 1
     fi
 
     for name in ${to_install[@]}; do
@@ -724,7 +724,7 @@ Uncheck the box to restore defaults."
 
 # Show window of available snaps to update or install.
 window_add_or_update_snaps() {
-    # This function takes 'offline_mode' and $SNAPS_DIR as arguments.
+    # This function takes $SNAPS_DIR and $SUM as arguments.
     #   It lets the user install or update snaps both offline and online.
     snaps_dir="$1"
     install_mode="$2"
@@ -734,12 +734,21 @@ window_add_or_update_snaps() {
         list_installed_snaps                                     # -> $snaps_installed
         list_available_snaps "$snaps_dir"                        # -> $snaps_available
         list_updatable_snaps "snaps_installed" "snaps_available" # -> $snaps_updatable
-        show_offline_updates "snaps_installed" "snaps_available" "snaps_updatable" # -> $selected_snaps
 
-        # Install offline snaps; show progress window.
-        install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
-            | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
-                --text="Waiting for authorization..." 2>/dev/null
+        if [[ $wasta_offline_launch ]]; then
+            # Update offline snaps; don't show other available snaps.
+            install_snaps "snaps_available" "snaps_updatable" "$snaps_dir" \
+                | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
+                    --text="Waiting for authorization..." 2>/dev/null
+        else
+            # Show updatable and installable snaps.
+            show_offline_updates "snaps_installed" "snaps_available" "snaps_updatable" # -> $selected_snaps
+
+            # Install offline snaps; show progress window.
+            install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
+                | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
+                    --text="Waiting for authorization..." 2>/dev/null
+        fi
     fi
 
     # Refresh snaps if $INET=2; show progress window.
@@ -749,11 +758,15 @@ window_add_or_update_snaps() {
         textB="\n\tThis might take awhile on a slow connection.\n\n"
         echo "$textA" | tee -a "$LOG"
         # TODO: Need some kind of indication of progress?
-        pkexec "$AS_ROOT" snap refresh 2>&1 | tee >(zenity "${ZDEFAULTS[@]}" \
+        pkexec "$AS_ROOT" snap refresh | tee >(zenity "${ZDEFAULTS[@]}" \
             "${ZPROGDEFS[@]}" --text="$textA$textB" 2>/dev/null)
+    fi
 
-        # Return to main window.
-        window_home "0"
+    # Exit now if launched from wasta-offline.
+    if [[ $wasta_offline_launch ]]; then
+        # Exit wasta-snap-manager to continue wasta-offline.
+        echo "Snap updates complete. Continuing with wasta-offline." >> "$LOG"
+        exit 0
     fi
 
     # Return to Offline Updates Window.
@@ -783,13 +796,15 @@ window_remove_snaps() {
 # Main processing.
 # ---------------------------------------------------------------------------
 
-# If folder argument is passed, go directly to installing or updating snaps.
-#   E.g., as launched from wasta-offline.
+# If folder argument is passed, go directly to updating snaps.
+#   E.g., if launched from wasta-offline.
 if [[ $OFFL -eq 1 ]]; then
+    wasta_offline_launch=1
     create_log "$SUM" "$SNAPS_DIR"
-    window_add_or_update_snaps "$SNAPS_DIR" "$INET"
+    window_add_or_update_snaps "$SNAPS_DIR" "$SUM"
 else
     # Launch main window.
+    wasta_offline_launch=''
     window_home "$SUM" "$SNAPS_DIR"
 fi
 

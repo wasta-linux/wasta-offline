@@ -176,13 +176,16 @@ update_snaps() {
     #   least be some mention of it in the wasta-offline log.
     echo | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
-    echo "*** Updating snap packages                             " | tee -a "$LOG"
+    echo "*** Starting wasta-snap-manager to update snaps.       " | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
     echo | tee -a "$LOG"
     echo $(date +%T) $HOST "wasta-snap-manager started." | tee -a "$LOG"
-    echo "Its log file can be found in $WO_LOC/log/wasta-snap-manager" | tee -a "$LOG"
+    echo -e "Its log file can be found at:\n$WO_LOC/log/wasta-snap-manager" | tee -a "$LOG"
     echo | tee -a "$LOG"
     "$BASE"/wasta-snap-manager $NETMODE -s "$WO_LOC"
+    echo "-------------------------------------------------------" | tee -a "$LOG"
+    echo "*** Snaps updated. Continuing with wasta-offline.      " | tee -a "$LOG"
+    echo "-------------------------------------------------------" | tee -a "$LOG"
 }
 
 # ------------------------------------------------------------------------------
