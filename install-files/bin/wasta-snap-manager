@@ -373,8 +373,9 @@ install_snaps() {
     snaps_dir="$3"
 
     # Elevate to root privileges before installing.
-    if [[ ! $to_install ]]; then
+    if [[ ! ${to_install[@]} ]]; then
         # No installs or updates selected.
+        echo "Nothing to install or update." | tee -a "$LOG"
         return 0
     fi
     pkexec "$AS_ROOT" elevate
@@ -383,7 +384,7 @@ install_snaps() {
         return 1
     fi
 
-    for name in ${to_install[@]}; do
+    for name in ${!to_install[@]}; do
         rev="${available[$name]}"
 
         # Output to progress dialog and to $LOG.
