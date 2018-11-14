@@ -105,7 +105,7 @@ ask_offline_folder() {
         # Convoluted yet functional zenity subprocess inspired by this article:
         #   http://wiki.bash-hackers.org/zenity_--progress
         wo_list=$(
-            find /media /mnt /home/"$USER" -not -path '*/.*' \
+            find /media /mnt /home/"$USER" -not -path '*/.*' -maxdepth 3 \
                 -name 'wasta-offline' -type d 2>/dev/null | tee >(
                     zenity --text="$text" "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" \
                         --auto-kill --no-cancel 2>/dev/null
