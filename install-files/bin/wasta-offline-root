@@ -15,7 +15,9 @@ if [ -z "$LOG_DATE" ]; then
 fi
 
 WO_LOC=$2
-if [ -z "$WO_LOC" ] || ! [ -x "$WO_LOC/local-cache/" ]; then
+if [ -z "$WO_LOC" ] \
+  || ( ! [ -x "$WO_LOC/local-cache/" ] && ! [ -x "$WO_LOC/apt-mirror" ] );
+then
   if [ "$1" == "restoreApt" ] \
      && [ "$(dirname $WO_LOC)" == "$(dirname $(mktemp --dry-run))" ]; then
     LOG=$WO_LOC

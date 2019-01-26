@@ -1,3 +1,9 @@
+wasta-offline (2.0.0.5) bionic; urgency=medium
+
+  * valid WO folder if either local-cache or apt-mirror
+
+ -- Justin Luth <jluth@mail.com>  Sat, 26 Jan 2019 08:42:01 +0300
+
 wasta-offline (2.0.0.4) bionic; urgency=medium
 
   * recognize LinuxMint Tara (based on bionic 18.04)
