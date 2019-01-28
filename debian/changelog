@@ -1,4 +1,4 @@
-wasta-offline (2.0.0.5) bionic; urgency=medium
+wasta-offline (2.0.0.5.1) bionic; urgency=medium
 
   * valid WO folder if either local-cache or apt-mirror
 

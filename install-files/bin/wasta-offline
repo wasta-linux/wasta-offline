@@ -448,7 +448,7 @@ fi
 echo "Architecture Folder set to: $ARCH_FOLDER" | tee -a "$LOG"
 
 # local-cache repository addition, if found.
-if [ -e "$WO_LOC/local-cache" ];
+if [ -x "$WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/" ];
 then
     # --------------------------------------------------------------------------
     # Optional: Update Package cache if necessary
