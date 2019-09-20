@@ -368,6 +368,7 @@ Available updates are already selected. New packages can be installed by selecti
 }
 
 install_snaps() {
+    # This function is only used to install offline snaps.
     declare -n available="$1"
     declare -n to_install="$2"
     snaps_dir="$3"
@@ -384,7 +385,12 @@ install_snaps() {
         return 1
     fi
 
-    for name in ${!to_install[@]}; do
+    # Force networking to be offline to avoid downloading snap prereqs.
+    # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
+    nmcli networking off
+
+    # TODO: Why did I have ${!to_install[@]} below here before? It errored out due to $name being the rev #.
+    for name in ${to_install[@]}; do
         rev="${available[$name]}"
 
         # Output to progress dialog and to $LOG.
@@ -405,9 +411,11 @@ install_snaps() {
         if [[ $? -gt 0 ]]; then # failed to install
             change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
                 | cut -d' ' -f1)
-            # TODO: Does this work for other locales?
+            # TODO: Do these error grabs work for other locales?
             needs_classic=$(snap change "$change" | tail -n2 | head -1 \
                 | grep 'requires classic confinement')
+            needs_prereqs=$(snap change "$change" | tail -n4 | head -1 \
+                | grep 'prerequisites')
             if [[ $needs_classic ]]; then
                 # Attempt install again with --classic flag.
                 echo "$needs_classic" | tee -a "$LOG"
@@ -419,6 +427,12 @@ install_snaps() {
                 else
                     echo -e "installed." | tee -a "$LOG"
                 fi
+            elif [[ $needs_prereqs ]]; then
+                # TODO: Look for and install core, core16, core18, core20 in WO?
+                # TODO: Ideally I would find out how to determine from the downloaded snap what its prereqs are.
+                echo -e "error: prerequisite(s) needed; use online updates to fix; skipped. " | tee -a "$LOG"
+                # TODO: There needs to be an error window here for the user.
+                continue
             else
                 # Some other install error.
                 echo -e "error, skipped. " | tee -a "$LOG"
@@ -428,6 +442,10 @@ install_snaps() {
             echo -e "installed." | tee -a "$LOG"
         fi
     done
+
+    # Turn networking back on.
+    nmcli networking on
+
     echo | tee -a "$LOG"
 }
 
