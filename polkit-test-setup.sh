@@ -1,5 +1,7 @@
 #!/bin/bash
 
+### This script "installs" the polkit authentication and binary files in order to test WSM. ###
+
 # This script needs sudo privileges.
 # ---------------------------------------------------------------------------
 if [[ $(id -u) -ne 0 ]]; then
