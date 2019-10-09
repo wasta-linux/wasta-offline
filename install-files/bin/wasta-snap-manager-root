@@ -6,4 +6,8 @@ elif [[ $1 == 'snap' ]]; then
     snap ${@:2}
 elif [[ $1 == 'kill' ]]; then
     kill ${@:2}
+elif [[ $1 == 'mount' ]]; then
+    mount ${@:2}
+elif [[ $1 == 'umount' ]]; then
+    umount ${@:2}
 fi
