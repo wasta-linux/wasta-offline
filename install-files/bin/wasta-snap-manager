@@ -90,6 +90,8 @@ ZPROGDEFS=(
     --progress --pulsate --height=175 --auto-close
 )
 
+CORES=( core core18 )
+
 
 # ---------------------------------------------------------------------------
 # Define functions.
@@ -277,15 +279,6 @@ list_prerequisites() {
     # TODO: delete after testing
     echo "confinement: $confinement | base: $base | prereqs: $prereqs" >> "${LOG_DIR}/cat.txt"
 
-    # Produce array 'snap_prereqs', starting with corresponding base.
-    # NOTE: As of 2019/10/09 bases are installed explicitly rather than added to prereq list.
-    #if [[ $base ]]; then
-    #    snap_prereqs[$base]=''
-    #else
-    #    # If base is not specified, then "core" is implied.
-    #    snap_prereqs['core']=''
-    #fi
-
     # Add "default-provider" prereqs to array.
     if [[ $prereqs ]]; then
         for p in $prereqs; do
@@ -309,7 +302,9 @@ show_installed_snaps() {
     # TODO: Obviously this will need to be revised for any future core snaps,
     #   but it seems unwise to try to match snaps beginning with 'core';
     #   e.g., corebird.
-    unset installed['core'] installed['core18']
+    for c in ${CORES[@]}; do
+        unset installed[$c]
+    done
 
     # Build list for displaying installed snaps.
     list_installed_unsorted=( ${!installed[@]} )
@@ -494,8 +489,7 @@ install_snaps() {
     nmcli networking off
 
     # Install/update core snaps.
-    cores=( core core18 )
-    for name in ${cores[@]}; do
+    for name in ${CORES[@]}; do
         echo $name >> "${LOG_DIR}/cat.txt"
         rev="${available[$name]}"
 
@@ -570,8 +564,7 @@ install_snaps() {
                     echo -e "installed." | tee -a "$LOG"
                 fi
             elif [[ $needs_prereqs ]]; then
-                # TODO: Look for and install core, core16, core18, core20 in WO?
-                # TODO: Ideally I would find out how to determine from the downloaded snap what its prereqs are.
+                # Prerequisites are missing.
                 echo -e "error: prerequisite(s) needed; use online updates to fix; skipped.\n$change " | tee -a "$LOG"
                 # TODO: There needs to be an error window here for the user.
                 continue
