@@ -199,7 +199,7 @@ list_installed_snaps() {
     # Recreate updated $snaps_installed.
     installed_list=$(snap list | grep -v Name)
     if [[ -w $LOG ]]; then
-        echo -e "Installed snaps:\n$installed_list\n" | tee -a "$LOG"
+        echo -e "Installed snaps:\n$installed_list\n" >> "$LOG"
     fi
 
     # Add these snap names to $snaps_installed dictionary.
@@ -257,6 +257,52 @@ list_updatable_snaps() {
     done
 }
 
+list_prerequisites() {
+    # Find and list the given snap's prerequisites.
+    snap_file="$1"
+    unset snap_prereqs[@]
+    declare -Ag snap_prereqs
+    tmpd=$(mktemp -d)
+    pkexec "$AS_ROOT" mount "${SNAPS_DIR}/${snap_file}" "$tmpd"
+
+    # TODO: delete after testing
+    > "${LOG_DIR}/cat.txt"
+
+    yaml="${tmpd}/meta/snap.yaml"
+    expr='s/.*:\s(.*)/\1/'
+    base=$(cat "$yaml" | grep 'base:' | sed -r "$expr") # 0 or 1 line
+    confinement=$(cat "$yaml" | grep 'confinement:' | sed -r "$expr") # 1 line
+    prereqs=$(cat "$yaml" | grep 'default-provider:' | sed -r "$expr") # 0 to multiple lines
+
+    # TODO: delete after testing
+    echo "confinement: $confinement | base: $base | prereqs: $prereqs" >> "${LOG_DIR}/cat.txt"
+
+    # Produce array 'snap_prereqs', starting with corresponding base.
+    # NOTE: As of 2019/10/09 bases are installed explicitly rather than added to prereq list.
+    #if [[ $base ]]; then
+    #    snap_prereqs[$base]=''
+    #else
+    #    # If base is not specified, then "core" is implied.
+    #    snap_prereqs['core']=''
+    #fi
+
+    # Add "default-provider" prereqs to array.
+    if [[ $prereqs ]]; then
+        for p in $prereqs; do
+            snap_prereqs[$p]=''
+        done
+
+        # TODO: delete after testing
+        echo "snap_prereqs:
+        ${!snap_prereqs[@]}" >> "${LOG_DIR}/cat.txt"
+    else
+        echo "No prereqs" >> "${LOG_DIR}/cat.txt"
+    fi
+
+    pkexec "$AS_ROOT" umount "$tmpd"
+    rm -r "$tmpd"
+}
+
 show_installed_snaps() {
     declare -n installed="$1"
     # Remove core snaps from list to avoid accidentally uninstalling them.
@@ -311,13 +357,26 @@ remove_snaps() {
     for name in ${to_remove[@]}; do
         # Output to progress dialog.
         echo "#Removing snaps.\n\n\nRemoving $name..."
+        echo -en "Removing $name... " | tee -a "$LOG"
 
         pkexec "$AS_ROOT" snap remove "$name"
-        if [[ $? -eq 126 ]]; then
+        ret=$?
+        if [[ $ret -eq 126 ]]; then
             # Snap removal cancelled.
+            echo -e "cancelled." | tee -a "$LOG"
             exit 1
+        elif [[ $ret -gt 0 ]]; then
+            echo "ret: $ret" | tee -a "$LOG"
+            # Some other error.
+            echo -e "error, skipped." | tee -a "$LOG"
+            continue
+        else
+            # Snap removed successfully.
+            echo -e "removed." | tee -a "$LOG"
         fi
     done
+
+    echo | tee -a "$LOG"
 }
 
 show_offline_updates() {
@@ -367,6 +426,46 @@ Available updates are already selected. New packages can be installed by selecti
     fi
 }
 
+install_prereqs() {
+    echo "Installing prereqs" | tee -a "$LOG"
+    declare -n available="$1"
+    declare -n prereqs="$2"
+    snaps_dir="$3"
+
+    # Elevate to root privileges before installing.
+    if [[ ! ${!prereqs[@]} ]]; then
+        # No installs or updates selected.
+        echo "No prerequisites to install." | tee -a "$LOG"
+        return 0
+    fi
+    pkexec "$AS_ROOT" elevate
+    if [[ $? -eq 126 ]]; then
+        # Installation cancelled.
+        # Ensure that networking is back on.
+        nmcli networking on
+        return 1
+    fi
+
+    nmcli networking off
+    echo > "${LOG_DIR}/cat2.txt"
+    for name in ${!prereqs[@]}; do
+        echo "prereq name: $name" >> "${LOG_DIR}/cat2.txt"
+        rev="${available[$name]}"
+        # Output to progress dialog and to $LOG.
+        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
+        echo -en "Installing $name from offline source... " | tee -a "$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" #2>"$LOG"
+        if [[ $? -gt 0 ]]; then # failed to install
+            # Some other install error.
+            echo -e "error, skipped. " | tee -a "$LOG"
+            continue
+        else
+            echo -e "installed." | tee -a "$LOG"
+        fi
+    done
+}
+
 install_snaps() {
     # This function is only used to install offline snaps.
     declare -n available="$1"
@@ -379,23 +478,66 @@ install_snaps() {
         echo "Nothing to install or update." | tee -a "$LOG"
         return 0
     fi
+
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
         # Installation cancelled.
+        echo "Installation cancelled!" | tee -a "$LOG"
+        # Ensure that networking is back on.
+        nmcli networking on
         return 1
     fi
 
     # Force networking to be offline to avoid downloading snap prereqs.
     # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
+    #   - Better solution: temporarily block address 'https://api.snapcraft.io'
     nmcli networking off
 
-    # TODO: Why did I have ${!to_install[@]} below here before? It errored out due to $name being the rev #.
-    for name in ${to_install[@]}; do
+    # Install/update core snaps.
+    cores=( core core18 )
+    for name in ${cores[@]}; do
+        echo $name >> "${LOG_DIR}/cat.txt"
         rev="${available[$name]}"
 
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
         echo -en "Installing $name from offline source... " | tee -a "$LOG"
+
+        # Acknowledge assertion and install snap.
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
+        if [[ $? -gt 0 ]]; then
+            # Some install error.
+            change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
+                | cut -d' ' -f1)
+
+            # Output to progress dialog and to $LOG.
+            echo "#Error installing $name; installation skipped"
+            echo -e "error, skipped.\n$change " | tee -a "$LOG"
+            continue
+        else
+            echo -e "installed." | tee -a "$LOG"
+        fi
+    done
+
+
+    # Install/update selected snaps.
+    for name in ${to_install[@]}; do
+
+        rev="${available[$name]}"
+
+        # Output to progress dialog and to $LOG.
+        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
+        echo -en "Installing $name from offline source... " | tee -a "$LOG"
+
+        # TODO: list and install prerequisites.
+        list_prerequisites "${name}_${rev}.snap"
+
+        # Install prereqs for current snap.
+        if [[ $snap_prereqs ]]; then
+            install_prereqs "snaps_available" "snap_prereqs" "$snaps_dir"
+        fi
+
         # Acknowledge assertion.
         pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
         #--------------------------------------------------------------
@@ -407,7 +549,7 @@ install_snaps() {
         #           'confinement: classic', umount the image.
         # -------------------------------------------------------------
         # Install snap. Check change to see if error due to --classic flag.
-        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" #2>"$LOG"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
         if [[ $? -gt 0 ]]; then # failed to install
             change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
                 | cut -d' ' -f1)
@@ -430,7 +572,7 @@ install_snaps() {
             elif [[ $needs_prereqs ]]; then
                 # TODO: Look for and install core, core16, core18, core20 in WO?
                 # TODO: Ideally I would find out how to determine from the downloaded snap what its prereqs are.
-                echo -e "error: prerequisite(s) needed; use online updates to fix; skipped. " | tee -a "$LOG"
+                echo -e "error: prerequisite(s) needed; use online updates to fix; skipped.\n$change " | tee -a "$LOG"
                 # TODO: There needs to be an error window here for the user.
                 continue
             else
@@ -750,6 +892,7 @@ window_add_or_update_snaps() {
 
     # Prepare to add/update snaps from offline source if chosen.
     if [[ ! $install_mode -eq 2 ]]; then
+        echo "=== Add/Update Snaps window ===" >> "$LOG"
         list_installed_snaps                                     # -> $snaps_installed
         list_available_snaps "$snaps_dir"                        # -> $snaps_available
         list_updatable_snaps "snaps_installed" "snaps_available" # -> $snaps_updatable
@@ -797,7 +940,7 @@ window_remove_snaps() {
     # This function takes no arguments. It lets the user uncheck installed
     #   snaps in order to uninstall them. It can also be used to simply show
     #   a list of installed snaps.
-    LOG='' # not going to log snap removals
+    echo "=== Remove Snaps window ===" >> "$LOG"
     list_installed_snaps # -> $snaps_installed
     show_installed_snaps "snaps_installed" # -> $snaps_to_remove
 
