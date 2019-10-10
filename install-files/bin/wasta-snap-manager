@@ -952,9 +952,18 @@ window_remove_snaps() {
     # This function takes no arguments. It lets the user uncheck installed
     #   snaps in order to uninstall them. It can also be used to simply show
     #   a list of installed snaps.
+    if [[ ! $LOG ]]; then
+        create_log
+    fi
     echo "=== Remove Snaps window ===" >> "$LOG"
     list_installed_snaps # -> $snaps_installed
     show_installed_snaps "snaps_installed" # -> $snaps_to_remove
+
+    # Test if snaps_to_remove list is empty.
+    if [[ ! ${snaps_to_remove[@]} ]]; then
+        # Empty removal list. Return to main window.
+        window_home
+    fi
 
     # Remove snaps; show progress window.
     remove_snaps "snaps_to_remove" \
