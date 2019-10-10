@@ -90,6 +90,7 @@ ZPROGDEFS=(
     --progress --pulsate --height=175 --auto-close
 )
 
+# Core snaps assumed.
 CORES=( core core18 )
 
 
@@ -436,12 +437,9 @@ install_prereqs() {
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
         # Installation cancelled.
-        # Ensure that networking is back on.
-        nmcli networking on
         return 1
     fi
 
-    nmcli networking off
     echo > "${LOG_DIR}/cat2.txt"
     for name in ${!prereqs[@]}; do
         echo "prereq name: $name" >> "${LOG_DIR}/cat2.txt"
@@ -450,8 +448,11 @@ install_prereqs() {
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
         echo -en "Installing $name from offline source... " | tee -a "$LOG"
         pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
+        nmcli networking off
         pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" #2>"$LOG"
-        if [[ $? -gt 0 ]]; then # failed to install
+        ret=$?
+        nmcli networking on
+        if [[ $ret -gt 0 ]]; then # failed to install
             # Some other install error.
             echo -e "error, skipped. " | tee -a "$LOG"
             continue
@@ -479,41 +480,51 @@ install_snaps() {
         # Installation cancelled.
         echo "Installation cancelled!" | tee -a "$LOG"
         # Ensure that networking is back on.
-        nmcli networking on
+        #nmcli networking on
         return 1
     fi
-
-    # Force networking to be offline to avoid downloading snap prereqs.
-    # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
-    #   - Better solution: temporarily block address 'https://api.snapcraft.io'
-    nmcli networking off
 
     # Install/update core snaps.
     for name in ${CORES[@]}; do
         echo $name >> "${LOG_DIR}/cat.txt"
-        rev="${available[$name]}"
 
-        # Output to progress dialog and to $LOG.
-        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
-        echo -en "Installing $name from offline source... " | tee -a "$LOG"
-
-        # Acknowledge assertion and install snap.
-        pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert"
-        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
-        if [[ $? -gt 0 ]]; then
-            # Some install error.
-            change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
-                | cut -d' ' -f1)
+        # Test if core snap is available offline.
+        if [[ ${available[$name]} ]]; then
+            # Get revision number of available core snap.
+            rev_avail="${available[$name]}"
+            # Test if core snap is already installed.
+            snap list "$name" >/dev/null 2>&1
+            if [[ $? -eq 0 ]]; then
+                # Core snap installed. Get revision number.
+                rev_exist=$(snap list $name | grep "$name" | cut -d' ' -f5)
+                echo "Rev: $rev_exist" >> "${LOG_DIR}/cat.txt"
+                if [[ $rev_exist -ge $rev_avail ]]; then
+                    # Most current offline revision already installed.
+                    continue
+                fi
+            fi
 
             # Output to progress dialog and to $LOG.
-            echo "#Error installing $name; installation skipped"
-            echo -e "error, skipped.\n$change " | tee -a "$LOG"
-            continue
-        else
-            echo -e "installed." | tee -a "$LOG"
+            echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
+            echo -en "Installing $name from offline source... " | tee -a "$LOG"
+
+            # Acknowledge assertion and install snap.
+            pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev_avail}.assert"
+            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev_avail}.snap" 2>/dev/null
+            if [[ $? -gt 0 ]]; then
+                # Some install error.
+                change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
+                    | cut -d' ' -f1)
+
+                # Output to progress dialog and to $LOG.
+                echo "#Error installing $name; installation skipped"
+                echo -e "error, skipped.\n$change " | tee -a "$LOG"
+                continue
+            else
+                echo -e "installed." | tee -a "$LOG"
+            fi
         fi
     done
-
 
     # Install/update selected snaps.
     for name in ${to_install[@]}; do
@@ -542,9 +553,20 @@ install_snaps() {
         #       2. Mount the snap file, cat /meta/snap.yaml, grep
         #           'confinement: classic', umount the image.
         # -------------------------------------------------------------
+
+        # Force networking to be offline to avoid downloading snap prereqs.
+        # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
+        #   - Better solution: temporarily block address 'https://api.snapcraft.io'
+        nmcli networking off
+
         # Install snap. Check change to see if error due to --classic flag.
         pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
-        if [[ $? -gt 0 ]]; then # failed to install
+        ret=$?
+
+        # Restore networking.
+        nmcli networking on
+
+        if [[ $ret -gt 0 ]]; then # failed to install
             change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
                 | cut -d' ' -f1)
             # TODO: Do these error grabs work for other locales?
@@ -577,9 +599,6 @@ install_snaps() {
             echo -e "installed." | tee -a "$LOG"
         fi
     done
-
-    # Turn networking back on.
-    nmcli networking on
 
     echo | tee -a "$LOG"
 }
