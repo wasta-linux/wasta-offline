@@ -422,11 +422,54 @@ Available updates are already selected. New packages can be installed by selecti
     fi
 }
 
+install_cores() {
+    # Install/update core snaps.
+    for name in ${CORES[@]}; do
+        # Test if core snap is available offline.
+        if [[ ${available[$name]} ]]; then
+            # Get revision number of available core snap.
+            rev_avail="${available[$name]}"
+            # Test if core snap is already installed.
+            snap list "$name" >/dev/null 2>&1
+            if [[ $? -eq 0 ]]; then
+                # Core snap installed. Get revision number.
+                rev_exist=$(snap list $name | grep "$name" | cut -d' ' -f5)
+                if [[ $rev_exist -ge $rev_avail ]]; then
+                    # Most current offline revision already installed.
+                    continue
+                fi
+            fi
+
+            # Output to progress dialog and to $LOG.
+            echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
+            echo -en "Installing $name from offline source... " | tee -a "$LOG"
+
+            # Acknowledge assertion and install snap.
+            pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev_avail}.assert"
+            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev_avail}.snap" 2>/dev/null
+            if [[ $? -gt 0 ]]; then
+                # Some install error.
+                change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
+                    | cut -d' ' -f1)
+
+                # Output to progress dialog and to $LOG.
+                echo "#Error installing $name; installation skipped"
+                echo -e "error, skipped.\n$change " | tee -a "$LOG"
+                continue
+            else
+                echo -e "installed." | tee -a "$LOG"
+            fi
+        fi
+    done
+}
+
 install_prereqs() {
+    echo "Install prerequs; Confinement: $confinement" >> "$LOG/cat.txt"
+    exit
     echo "Installing prereqs" | tee -a "$LOG"
-    declare -n available="$1"
-    declare -n prereqs="$2"
-    snaps_dir="$3"
+    #declare -n available="$1"
+    #declare -n prereqs="$2"
+    #snaps_dir="$3"
 
     # Elevate to root privileges before installing.
     if [[ ! ${!prereqs[@]} ]]; then
@@ -485,45 +528,7 @@ install_snaps() {
     fi
 
     # Install/update core snaps.
-    for name in ${CORES[@]}; do
-        echo $name >> "${LOG_DIR}/cat.txt"
-
-        # Test if core snap is available offline.
-        if [[ ${available[$name]} ]]; then
-            # Get revision number of available core snap.
-            rev_avail="${available[$name]}"
-            # Test if core snap is already installed.
-            snap list "$name" >/dev/null 2>&1
-            if [[ $? -eq 0 ]]; then
-                # Core snap installed. Get revision number.
-                rev_exist=$(snap list $name | grep "$name" | cut -d' ' -f5)
-                if [[ $rev_exist -ge $rev_avail ]]; then
-                    # Most current offline revision already installed.
-                    continue
-                fi
-            fi
-
-            # Output to progress dialog and to $LOG.
-            echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
-            echo -en "Installing $name from offline source... " | tee -a "$LOG"
-
-            # Acknowledge assertion and install snap.
-            pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev_avail}.assert"
-            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev_avail}.snap" 2>/dev/null
-            if [[ $? -gt 0 ]]; then
-                # Some install error.
-                change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
-                    | cut -d' ' -f1)
-
-                # Output to progress dialog and to $LOG.
-                echo "#Error installing $name; installation skipped"
-                echo -e "error, skipped.\n$change " | tee -a "$LOG"
-                continue
-            else
-                echo -e "installed." | tee -a "$LOG"
-            fi
-        fi
-    done
+    install_cores
 
     # Install/update selected snaps.
     for name in ${to_install[@]}; do
@@ -539,7 +544,7 @@ install_snaps() {
 
         # Install prereqs for current snap.
         if [[ $snap_prereqs ]]; then
-            install_prereqs "snaps_available" "snap_prereqs" "$snaps_dir"
+            install_prereqs "available" "snap_prereqs" "$snaps_dir"
         fi
 
         # Acknowledge assertion.
