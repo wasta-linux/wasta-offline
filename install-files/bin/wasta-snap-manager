@@ -497,7 +497,6 @@ install_snaps() {
             if [[ $? -eq 0 ]]; then
                 # Core snap installed. Get revision number.
                 rev_exist=$(snap list $name | grep "$name" | cut -d' ' -f5)
-                echo "Rev: $rev_exist" >> "${LOG_DIR}/cat.txt"
                 if [[ $rev_exist -ge $rev_avail ]]; then
                     # Most current offline revision already installed.
                     continue
@@ -917,6 +916,12 @@ window_add_or_update_snaps() {
         else
             # Show updatable and installable snaps.
             show_offline_updates "snaps_installed" "snaps_available" "snaps_updatable" # -> $selected_snaps
+
+            # Test if $selected_snaps list is empty.
+            if [[ ! ${selected_snaps[@]} ]]; then
+                # Empty update/install list. Return to main window.
+                window_home
+            fi
 
             # Install offline snaps; show progress window.
             install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
