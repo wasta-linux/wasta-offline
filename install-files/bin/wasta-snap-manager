@@ -464,9 +464,8 @@ install_cores() {
 }
 
 install_prereqs() {
-    echo "Install prerequs; Confinement: $confinement" >> "$LOG/cat.txt"
-    exit
     echo "Installing prereqs" | tee -a "$LOG"
+    declare -n prereqs="$1"
     #declare -n available="$1"
     #declare -n prereqs="$2"
     #snaps_dir="$3"
@@ -483,9 +482,8 @@ install_prereqs() {
         return 1
     fi
 
-    echo > "${LOG_DIR}/cat2.txt"
     for name in ${!prereqs[@]}; do
-        echo "prereq name: $name" >> "${LOG_DIR}/cat2.txt"
+        echo "prereq name: $name" >> "${LOG_DIR}/cat.txt"
         rev="${available[$name]}"
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
@@ -544,28 +542,25 @@ install_snaps() {
 
         # Install prereqs for current snap.
         if [[ $snap_prereqs ]]; then
-            install_prereqs "available" "snap_prereqs" "$snaps_dir"
+            install_prereqs "snap_prereqs"
         fi
 
         # Acknowledge assertion.
         pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
-        #--------------------------------------------------------------
-        # Unfortunately, to find out if a downloaded snap requires
-        # --classic confinement there seems to be two options:
-        #       1. Install the snap first and let it fail, grep for
-        #           'classic' in the error output
-        #       2. Mount the snap file, cat /meta/snap.yaml, grep
-        #           'confinement: classic', umount the image.
-        # -------------------------------------------------------------
 
         # Force networking to be offline to avoid downloading snap prereqs.
         # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
-        #   - Better solution: temporarily block address 'https://api.snapcraft.io'
+        #   - Better solution: temporarily convince snap that there is no network, but how?
         nmcli networking off
 
-        # Install snap. Check change to see if error due to --classic flag.
-        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
-        ret=$?
+        # Install snap. Use --classic flag if necessary.
+        if [[ $confinement == 'classic' ]]; then
+            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" --classic 2>/dev/null
+            ret=$?
+        else
+            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
+            ret=$?
+        fi
 
         # Restore networking.
         nmcli networking on
@@ -574,22 +569,9 @@ install_snaps() {
             change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
                 | cut -d' ' -f1)
             # TODO: Do these error grabs work for other locales?
-            needs_classic=$(snap change "$change" | tail -n2 | head -1 \
-                | grep 'requires classic confinement')
             needs_prereqs=$(snap change "$change" | tail -n4 | head -1 \
                 | grep 'prerequisites')
-            if [[ $needs_classic ]]; then
-                # Attempt install again with --classic flag.
-                echo "$needs_classic" | tee -a "$LOG"
-                pkexec "$AS_ROOT" snap install $snaps_dir/${name}_${rev}.snap --classic
-                if [[ $? -ne 0 ]]; then
-                    # Unhandled error.
-                    echo -e "error, skipped." | tee -a "$LOG"
-                    continue
-                else
-                    echo -e "installed." | tee -a "$LOG"
-                fi
-            elif [[ $needs_prereqs ]]; then
+            if [[ $needs_prereqs ]]; then
                 # Prerequisites are missing.
                 echo -e "error: prerequisite(s) needed; use online updates to fix; skipped.\n$change " | tee -a "$LOG"
                 # TODO: There needs to be an error window here for the user.
