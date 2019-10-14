@@ -9,13 +9,16 @@
 #   - Guide the user to select such a folder when there is no argument.
 #   - Present a list of snaps to install or update, allowing the user to select
 #       from among them.
-#   - Ensure that the core snap is installed/updated first.
+#   - Ensure that the core snap(s) is/are installed/updated first.
+#   - Ensure that prerequisite snaps are installed.
 #   - Ensure that snaps will be able to receive automatic updates, as if they
 #       were installed directly from the snap store.
 #   - Allow user to manage snapd settings, such as refresh timer, metered
 #       connections, number of revisions kept.
 # ===========================================================================
 
+# TODO: delete after testing
+> "/media/test/WASTA-OL/wasta-offline/log/wasta-snap-manager/cat.txt"
 
 # ---------------------------------------------------------------------------
 # Set global variables.
@@ -207,13 +210,15 @@ list_installed_snaps() {
 
     # Add these snap names to $snaps_installed dictionary.
     declare -Ag snaps_installed
-    while read -r line; do
-        name=$(echo "$line" | tr -s ' ' | cut -d' ' -f1)
-        rev=$(echo "$line" | tr -s ' ' | cut -d' ' -f3)
-        #fileloc=$SNAPS/${snap}_${rev}.snap
-        #size=$(stat --printf="%s" "$fileloc")
-        snaps_installed["$name"]="$rev"
-    done <<< "$installed_list"
+    if [[ ! $installed_list == '' ]]; then
+        while read -r line; do
+            name=$(echo "$line" | tr -s ' ' | cut -d' ' -f1)
+            rev=$(echo "$line" | tr -s ' ' | cut -d' ' -f3)
+            #fileloc=$SNAPS/${snap}_${rev}.snap
+            #size=$(stat --printf="%s" "$fileloc")
+            snaps_installed["$name"]="$rev"
+        done <<< "$installed_list"
+    fi
 }
 
 list_available_snaps() {
@@ -268,29 +273,17 @@ list_prerequisites() {
     tmpd=$(mktemp -d)
     pkexec "$AS_ROOT" mount "${SNAPS_DIR}/${snap_file}" "$tmpd"
 
-    # TODO: delete after testing
-    > "${LOG_DIR}/cat.txt"
-
     yaml="${tmpd}/meta/snap.yaml"
     expr='s/.*:\s(.*)/\1/'
     base=$(cat "$yaml" | grep 'base:' | sed -r "$expr") # 0 or 1 line
     confinement=$(cat "$yaml" | grep 'confinement:' | sed -r "$expr") # 1 line
     prereqs=$(cat "$yaml" | grep 'default-provider:' | sed -r "$expr") # 0 to multiple lines
 
-    # TODO: delete after testing
-    echo "confinement: $confinement | base: $base | prereqs: $prereqs" >> "${LOG_DIR}/cat.txt"
-
     # Add "default-provider" prereqs to array.
     if [[ $prereqs ]]; then
         for p in $prereqs; do
             snap_prereqs[$p]=''
         done
-
-        # TODO: delete after testing
-        echo "snap_prereqs:
-        ${!snap_prereqs[@]}" >> "${LOG_DIR}/cat.txt"
-    else
-        echo "No prereqs" >> "${LOG_DIR}/cat.txt"
     fi
 
     pkexec "$AS_ROOT" umount "$tmpd"
@@ -431,11 +424,12 @@ install_cores() {
             rev_avail="${available[$name]}"
             # Test if core snap is already installed.
             snap list "$name" >/dev/null 2>&1
-            if [[ $? -eq 0 ]]; then
+            ret=$?
+            if [[ $ret -eq 0 ]]; then
                 # Core snap installed. Get revision number.
-                rev_exist=$(snap list $name | grep "$name" | cut -d' ' -f5)
+                rev_exist=$(snap list $name | grep "$name" | tr -s ' ' | cut -d' ' -f3)
                 if [[ $rev_exist -ge $rev_avail ]]; then
-                    # Most current offline revision already installed.
+                    # Most-recent offline revision already installed.
                     continue
                 fi
             fi
@@ -463,7 +457,7 @@ install_cores() {
     done
 }
 
-install_prereqs() {
+install_prerequisites() {
     echo "Installing prereqs" | tee -a "$LOG"
     declare -n prereqs="$1"
     #declare -n available="$1"
@@ -482,15 +476,15 @@ install_prereqs() {
         return 1
     fi
 
-    for name in ${!prereqs[@]}; do
-        echo "prereq name: $name" >> "${LOG_DIR}/cat.txt"
-        rev="${available[$name]}"
+    for p in ${!prereqs[@]}; do
+        echo "prereq name: $p" >> "${LOG_DIR}/cat.txt"
+        r="${available[$p]}"
         # Output to progress dialog and to $LOG.
-        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
-        echo -en "Installing $name from offline source... " | tee -a "$LOG"
-        pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
+        echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
+        echo -en "Installing $p from offline source... " | tee -a "$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/${p}_${r}.assert" #2>"$LOG"
         nmcli networking off
-        pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" #2>"$LOG"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/${p}_${r}.snap" #2>"$LOG"
         ret=$?
         nmcli networking on
         if [[ $ret -gt 0 ]]; then # failed to install
@@ -541,8 +535,8 @@ install_snaps() {
         list_prerequisites "${name}_${rev}.snap"
 
         # Install prereqs for current snap.
-        if [[ $snap_prereqs ]]; then
-            install_prereqs "snap_prereqs"
+        if [[ ! ${!snap_prereqs[@]} == '' ]]; then
+            install_prerequisites "snap_prereqs"
         fi
 
         # Acknowledge assertion.
