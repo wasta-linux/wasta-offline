@@ -274,7 +274,8 @@ list_prerequisites() {
     pkexec "$AS_ROOT" mount "${SNAPS_DIR}/${snap_file}" "$tmpd"
 
     yaml="${tmpd}/meta/snap.yaml"
-    expr='s/.*:\s(.*)/\1/'
+    #expr='s/.*:\s(.*)/\1/' # didn't omit parts; e.g. "default-provider: prereq:part"
+    expr='s/.*:\s(.*)(:|$).*/\1/' # omits part if 2nd colon found
     base=$(cat "$yaml" | grep 'base:' | sed -r "$expr") # 0 or 1 line
     confinement=$(cat "$yaml" | grep 'confinement:' | sed -r "$expr") # 1 line
     prereqs=$(cat "$yaml" | grep 'default-provider:' | sed -r "$expr") # 0 to multiple lines
@@ -604,7 +605,7 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
             --hide-column=2 "${list[@]}" \
             --ok-label="Add/Update..." --cancel-label="Quit" \
             --extra-button="Remove..." --extra-button="Settings..." \
-            --text="$text" --height=200 2>/dev/null)
+            --text="$text" --height=250 2>/dev/null)
         ec=$?
     fi
 
