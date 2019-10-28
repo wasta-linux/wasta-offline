@@ -923,8 +923,37 @@ window_add_or_update_snaps() {
         echo "$textA" | tee -a "$LOG"
         # TODO: Need some kind of indication of progress?
         # TODO: "Cancel" in the following zenity window doesn't work (subprocess)
-        pkexec "$AS_ROOT" snap refresh | tee >(zenity "${ZDEFAULTS[@]}" \
-            "${ZPROGDEFS[@]}" --text="$textA$textB" 2>/dev/null)
+        #pkexec "$AS_ROOT" snap refresh | tee >(zenity "${ZDEFAULTS[@]}" \
+        #"${ZPROGDEFS[@]}" --text="$textA$textB" 2>/dev/null)
+        pkexec "$AS_ROOT" snap refresh &
+        pk_pid=$!
+
+        tmp=$(mktemp)
+        (
+            # Show undefined progress window while refreshing snaps.
+            while [[ ! $(pgrep -a snap | grep -v "wasta-snap-manager" \
+                | grep "snap refresh" | cut -d' ' -f1) ]]; do
+                sleep .25
+            done
+
+            ref_pid=$(pgrep -a snap | grep -v "wasta-snap-manager" \
+                | grep "snap refresh" | cut -d' ' -f1)
+            echo "$ref_pid" > $tmp
+            ct=1
+            while [[ $(ps --no-headers -p $ref_pid) ]]; do
+                echo "#$textA$textB $ct sec"
+                sleep 1
+                ((ct+=1))
+            done
+        ) | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" 2>/dev/null
+        ret=$?
+
+        if [[ $ret -gt 0 ]]; then
+            # Some error or user cancelled.
+            ref_pid=$(cat $tmp)
+            pkexec "$AS_ROOT" kill $pk_pid $ref_pid
+        fi
+        rm $tmp
     fi
 
     # Exit now if launched from wasta-offline.
