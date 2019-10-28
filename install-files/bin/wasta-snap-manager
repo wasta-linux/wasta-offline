@@ -17,8 +17,6 @@
 #       connections, number of revisions kept.
 # ===========================================================================
 
-# TODO: delete after testing
-> "/media/test/WASTA-OL/wasta-offline/log/wasta-snap-manager/cat.txt"
 
 # ---------------------------------------------------------------------------
 # Set global variables.
@@ -203,7 +201,7 @@ list_installed_snaps() {
     unset snaps_installed[@]
 
     # Recreate updated $snaps_installed.
-    installed_list=$(snap list | grep -v Name)
+    installed_list=$(snap list | tail -n +2)
     if [[ -w $LOG ]]; then
         echo -e "Installed snaps:\n$installed_list\n" >> "$LOG"
     fi
@@ -253,6 +251,9 @@ list_available_snaps() {
 list_updatable_snaps() {
     declare -n inst="$1"
     declare -n avail="$2"
+
+    # Delete previous snaps_updatable
+    unset snaps_updatable[@]
 
     # Find any $snaps_available newer than $snaps_installed.
     declare -Ag snaps_updatable
@@ -532,10 +533,8 @@ install_snaps() {
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
         echo -en "Installing $name from offline source... " | tee -a "$LOG"
 
-        # TODO: list and install prerequisites.
+        # List and install prerequisites.
         list_prerequisites "${name}_${rev}.snap"
-
-        # Install prereqs for current snap.
         if [[ ! ${!snap_prereqs[@]} == '' ]]; then
             install_prerequisites "snap_prereqs"
         fi
@@ -599,7 +598,17 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
 
         loc_text="Add/update snaps from wasta [Offline] or local folder."
         net_text="Update snaps from the online Snap Store."
-        list=( "False" "1" "Offline" "$loc_text" "False" "2" "Online" "$net_text" )
+
+        net_check=$(ping -c1 "www.google.com" 2>/dev/null)
+        ret=$?
+        if [ $ret == 0 ]; then
+            #network found, give 2 list choices
+            list=( "False" "1" "Offline" "$loc_text" "False" "2" "Online" "$net_text" )
+        else
+            #network not found, only 1 choice
+            list=( "False" "1" "Offline" "$loc_text" )
+        fi
+
         sources=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
             --column='' --column=value --column=Source --column=Description \
             --hide-column=2 "${list[@]}" \
