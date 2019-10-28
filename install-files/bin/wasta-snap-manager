@@ -396,10 +396,12 @@ show_offline_updates() {
     if [[ $available_snaps ]]; then
         text="<big><b>\
 These offline snap packages are available for this computer.</b></big>
-Available updates are already selected. New packages can be installed by selecting them as well."
+Available updates are already selected. New packages can be installed by selecting them as well.
+If \"online updates\" has also been selected, updates will be searched from the Snap Store
+once the offline updates are complete."
         selected_snaps=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
             --title="Wasta [Snap] Manager" \
-            --ok-label="Add/Update" --cancel-label="Back" \
+            --ok-label="Continue..." --cancel-label="Back" \
             --column='' --column="Snap" --column="Installed Revision" --column="Available Revision" \
             "${available_snaps[@]}" --separator='\n' \
             --text="$text" 2>/dev/null
@@ -599,7 +601,7 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
         loc_text="Add/update snaps from wasta [Offline] or local folder."
         net_text="Update snaps from the online Snap Store."
 
-        net_check=$(ping -c1 "www.google.com" 2>/dev/null)
+        net_check=$(ping -c1 -W 3 "www.google.com" 2>/dev/null)
         ret=$?
         if [ $ret == 0 ]; then
             #network found, give 2 list choices
@@ -909,7 +911,7 @@ window_add_or_update_snaps() {
             show_offline_updates "snaps_installed" "snaps_available" "snaps_updatable" # -> $selected_snaps
 
             # Test if $selected_snaps list is empty.
-            if [[ ! ${selected_snaps[@]} ]]; then
+            if [[ ! ${selected_snaps[@]} && $install_mode -eq 1 ]]; then
                 # Empty update/install list. Return to main window.
                 window_home
             fi
@@ -925,9 +927,10 @@ window_add_or_update_snaps() {
     if [[ $install_mode -gt 1 ]]; then
         #last=$(snap change --last=refresh)
         textA="Updating snaps from the Snap store."
-        textB="\n\tThis might take awhile on a slow connection.\n\n"
+        textB="\n\tThis might take several minutes on a slow connection.\n\n"
         echo "$textA" | tee -a "$LOG"
         # TODO: Need some kind of indication of progress?
+        # TODO: "Cancel" in the following zenity window doesn't work (subprocess)
         pkexec "$AS_ROOT" snap refresh | tee >(zenity "${ZDEFAULTS[@]}" \
             "${ZPROGDEFS[@]}" --text="$textA$textB" 2>/dev/null)
     fi
