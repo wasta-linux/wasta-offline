@@ -252,16 +252,13 @@ list_updatable_snaps() {
     declare -n inst="$1"
     declare -n avail="$2"
 
-    # Delete previous snaps_updatable
-    unset snaps_updatable[@]
-
     # Find any $snaps_available newer than $snaps_installed.
-    declare -Ag snaps_updatable
+    snaps_updatable=()
     for name in ${!inst[@]}; do
         inst_rev="${inst[$name]}"
         avail_rev="${avail[$name]}"
         if [[ $avail_rev -gt $inst_rev ]]; then
-            snaps_updatable[$name]="$avail_rev"
+            snaps_updatable+=( "$name" )
         fi
     done
 }
@@ -384,7 +381,7 @@ show_offline_updates() {
         inst_rev="${installed[$name]}"
         avail_rev="${available[$name]}"
         if [[ ${installed[$name]} ]]; then
-            if [[ ${updatable[$name]} ]]; then
+            if [[ $(echo ${updatable[@]} | grep $name) ]]; then
                 available_snaps+=( "True" "$name" "$inst_rev" "$avail_rev" )
             fi
         else
@@ -406,8 +403,8 @@ once the offline updates are complete."
             "${available_snaps[@]}" --separator='\n' \
             --text="$text" 2>/dev/null
         )
-        ec=$?
-        if [[ $ec -eq 1 ]]; then
+        ret=$?
+        if [[ $ret -eq 1 ]]; then
             # User clicked Cancel. Go to Home Window.
             window_home "0"
         fi
@@ -464,9 +461,6 @@ install_cores() {
 install_prerequisites() {
     echo "Installing prereqs" | tee -a "$LOG"
     declare -n prereqs="$1"
-    #declare -n available="$1"
-    #declare -n prereqs="$2"
-    #snaps_dir="$3"
 
     # Elevate to root privileges before installing.
     if [[ ! ${!prereqs[@]} ]]; then
@@ -481,7 +475,6 @@ install_prerequisites() {
     fi
 
     for p in ${!prereqs[@]}; do
-        echo "prereq name: $p" >> "${LOG_DIR}/cat.txt"
         r="${available[$p]}"
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
@@ -530,7 +523,6 @@ install_snaps() {
     for name in ${to_install[@]}; do
 
         rev="${available[$name]}"
-
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
         echo -en "Installing $name from offline source... " | tee -a "$LOG"
@@ -892,7 +884,7 @@ window_add_or_update_snaps() {
     # This function takes $SNAPS_DIR and $SUM as arguments.
     #   It lets the user install or update snaps both offline and online.
     snaps_dir="$1"
-    install_mode="$2"
+    install_mode="$2" # 1 = online-only, 2 = offline-only, 3 = offline then online
 
     # Prepare to add/update snaps from offline source if chosen.
     if [[ ! $install_mode -eq 2 ]]; then
