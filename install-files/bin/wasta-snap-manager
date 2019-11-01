@@ -593,7 +593,8 @@ To <b>Add/Update</b> snap packages, first choose your preferred source(s):
         loc_text="Add/update snaps from wasta [Offline] or local folder."
         net_text="Update snaps from the online Snap Store."
 
-        net_check=$(ping -c1 -W 3 "www.google.com" 2>/dev/null)
+        net_check=$(dig +short @208.67.222.222 www.google.com >/dev/null 2>&1)
+
         ret=$?
         if [ $ret == 0 ]; then
             #network found, give 2 list choices
@@ -921,10 +922,8 @@ window_add_or_update_snaps() {
         textA="Updating snaps from the Snap store."
         textB="\n\tThis might take several minutes on a slow connection.\n\n"
         echo "$textA" | tee -a "$LOG"
-        # TODO: Need some kind of indication of progress?
+        # TODO: Need some kind of indication of actual progress?
         # TODO: "Cancel" in the following zenity window doesn't work (subprocess)
-        #pkexec "$AS_ROOT" snap refresh | tee >(zenity "${ZDEFAULTS[@]}" \
-        #"${ZPROGDEFS[@]}" --text="$textA$textB" 2>/dev/null)
         pkexec "$AS_ROOT" snap refresh &
         pk_pid=$!
 
@@ -963,8 +962,13 @@ window_add_or_update_snaps() {
         exit 0
     fi
 
-    # Return to Offline Updates Window.
-    window_add_or_update_snaps "$snaps_dir" "$install_mode"
+    # Return to Remove Snaps Window in only doing online updates.
+    if [[ $install_mode -eq 2 ]]; then
+        window_remove_snaps
+    else
+        # Return to Offline Updates Window.
+        window_add_or_update_snaps "$snaps_dir" "$install_mode"
+    fi
 }
 
 # Show window of installed snaps & allow for their removal.
