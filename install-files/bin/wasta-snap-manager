@@ -546,10 +546,10 @@ install_snaps() {
 
         # Install snap. Use --classic flag if necessary.
         if [[ $confinement == 'classic' ]]; then
-            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" --classic 2>/dev/null
+            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" --classic 2>&1 | tee -a "$LOG"
             ret=$?
         else
-            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>/dev/null
+            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>&1 | tee -a "$LOG"
             ret=$?
         fi
 
@@ -927,7 +927,7 @@ window_add_or_update_snaps() {
         echo "$textA" | tee -a "$LOG"
         # TODO: Need some kind of indication of actual progress?
         # TODO: "Cancel" in the following zenity window doesn't work (subprocess)
-        pkexec "$AS_ROOT" snap refresh &
+        pkexec "$AS_ROOT" snap refresh | tee -a "$LOG" &
         pk_pid=$!
 
         tmp=$(mktemp)
@@ -943,7 +943,14 @@ window_add_or_update_snaps() {
             echo "$ref_pid" > $tmp
             ct=1
             while [[ $(ps --no-headers -p $ref_pid) ]]; do
-                echo "#$textA$textB $ct sec"
+                if [[ $ct -lt 60 ]]; then
+                    elap=$(date -ud "@$ct" +':%S')
+                elif [[ $ct -lt 3600 ]]; then
+                    elap=$(date -ud "@$ct" +'%M:%S')
+                else
+                    elap=$(date -ud "@$ct" +'%H:%M:%S')
+                fi
+                echo "#$textA$textB $elap"
                 sleep 1
                 ((ct+=1))
             done
@@ -961,7 +968,7 @@ window_add_or_update_snaps() {
     # Exit now if launched from wasta-offline.
     if [[ $wasta_offline_launch ]]; then
         # Exit wasta-snap-manager to continue wasta-offline.
-        echo "Snap updates complete. Continuing with wasta-offline." >> "$LOG"
+        echo "Snap updates complete. Continuing with wasta-offline." | tee -a "$LOG"
         exit 0
     fi
 
