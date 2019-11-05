@@ -4,63 +4,72 @@
 
 # This script needs sudo privileges.
 # ---------------------------------------------------------------------------
-if [[ $(id -u) -ne 0 ]]; then
+if [[ $(id -u) -ne 0 && ! $1 == '-h' ]]; then
     echo "This script needs to be run with root privileges. Exiting."
     exit 1
 fi
 
 BASE=$(realpath $(dirname $0))
-installs=install-files
 BIN=/usr/bin
 POLKIT=/usr/share/polkit-1/actions
-bin=wasta-snap-manager-root
-bin2=wasta-snap-manager-2
-action=org.wasta.apps.wasta-snap-manager-root.policy
-action2=org.wasta.apps.wasta-snap-manager-2.policy
 
-bin3=wasta-offline-root
-action3=org.wasta.apps.wasta-offline.policy
+bins=(
+    wasta-snap-manager-root
+    wasta-offline-root
+)
+
+actions=(
+    org.wasta.apps.wasta-snap-manager-root.policy
+    org.wasta.apps.wasta-offline.policy
+)
 
 if [[ ! $1 ]]; then
-    # Create symlink for binary.
+    # Create symlinks for binaries.
     cd "$BIN"
-    if [[ ! -e ./$bin ]]; then
-        cp -s "$BASE"/"$installs"/bin/"$bin" .
-        echo "symlink for $BASE/$installs/bin/$bin created at $BIN"
+    for b in ${bins[@]}; do
+        if [[ ! -e ./$b ]]; then
+            cp -s "$BASE/install-files/bin/$b" .
+            echo "$BASE/install-files/bin/$b -> $BIN"
+        fi
+    done
 
-	cp -s "$BASE"/"$installs"/bin/"$bin3" .
-        echo "symlink for $BASE/$installs/bin/$bin3 created at $BIN"
-    fi
-    # Create symlink for polkit file.
+    # Create symlinks for polkit files.
     cd "$POLKIT"
-    if [[ ! -e ./$action ]]; then
-        cp -s "$BASE"/"$installs"/"$action" .
-        echo "symlink for $BASE/$installs/$action created at $POLKIT"
-
-        cp -s "$BASE"/"$installs"/"$action3" .
-        echo "symlink for $BASE/$installs/$action3 created at $POLKIT"
-    fi
+    for a in ${actions[@]}; do
+        if [[ ! -e ./$a ]]; then
+            cp -s "$BASE/install-files/$a" .
+            echo "$BASE/install-files/$a -> $POLKIT"
+        fi
+    done
 
 elif [[ $1 == '-d' ]]; then
-    # Remove symlinks.
-    if [[ -L $BIN/$bin ]]; then
-        rm "$BIN"/"$bin"
-        echo "symlink at $BIN/$bin removed"
+    # Remove symlinks for binaries.
+    for b in ${bins[@]}; do
+        if [[ -L $BIN/$b ]]; then
+            rm "$BIN/$b"
+            echo "symlink at $BIN/$b removed"
+        fi
+    done
 
-        rm "$BIN"/"$bin3"
-        echo "symlink at $BIN/$bin3 removed"
-    fi
-    if [[ -L "$POLKIT"/"$action" ]]; then
-        rm "$POLKIT"/"$action"
-        echo "symlink at $POLKIT/$action removed"
+    # Remove symlinks for polkit files.
+    for a in ${actions[@]}; do
+        if [[ -L $POLKIT/$a ]]; then
+            rm "$POLKIT/$a"
+            echo "symlink at $POLKIT/$a removed"
+        fi
+    done
 
-        rm "$POLKIT"/"$action3"
-        echo "symlink at $POLKIT/$action3 removed"
-    fi
 elif [[ $1 == '-h' ]]; then
     echo "Usage: $0 [-h | -d]"
-    echo "Simulate installation by creating symlinks for $bin, $bin3"
-    echo "$action, and $action3."
+    echo
+    echo "Simulate installation by creating symlinks for:"
+    for b in ${bins[@]}; do
+        echo -e "\t$b"
+    done
+    for a in ${actions[@]}; do
+        echo -e "\t$a"
+    done
+    echo
     echo "(These links will be removed if the -d option is passed.)"
     echo "The corresponding wasta-offline script still needs to be run explicitly;"
     echo "i.e. \$ $BASE/install-files/bin/wasta-offline."
