@@ -178,6 +178,9 @@ create_log() {
     echo "*** Installing/updating snaps                          " | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
 
+    snap --version | tee -a "$LOG"
+    echo | tee -a "$LOG"
+
     # Note defined update source(s).
     echo "Update source(s):"                    | tee -a "$LOG"
     case $sum in
