@@ -1,4 +1,4 @@
-wasta-offline (2.1) UNRELEASED; urgency=medium
+wasta-offline (2.1) bionic; urgency=medium
 
   * include support for updating snap packages
   * include app for managing snaps and snapd settings
