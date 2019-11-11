@@ -1,16 +1,20 @@
 <<<<<<< HEAD
-wasta-offline (2.1.1) bionic; urgency=medium
-
-  * valid WO folder if either local-cache or apt-mirror
-
- -- Justin Luth <jluth@mail.com>  Sat, 26 Jan 2019 08:42:01 +0300
-=======
+<<<<<<< HEAD
 wasta-offline (2.1) bionic; urgency=medium
 
   * include support for updating snap packages
   * include app for managing snaps and snapd settings
 
  -- Nate Marti <nate_marti@sil.org>  Wed, 06 Nov 2019 16:15:52 +0100
+
+wasta-offline (2.0.0.5) bionic; urgency=medium
+
+  * valid WO folder if either local-cache or apt-mirror
+
+ -- Justin Luth <jluth@mail.com>  Sat, 26 Jan 2019 08:42:01 +0300
+=======
+=======
+>>>>>>> dae356c... changed "series" to bionic from UNRELEASED
 >>>>>>> 608ea18... changed version to 2.1
 
 wasta-offline (2.0.0.4) bionic; urgency=medium
