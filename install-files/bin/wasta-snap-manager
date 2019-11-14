@@ -196,6 +196,13 @@ create_log() {
     echo | tee -a "$LOG"
 }
 
+get_installed_revision_number() {
+    # Returns revision number of installed snap.
+    name="$1"
+    revision=$(snap list $name | tail -n +2 | tr -s ' ' | cut -d' ' -f3)
+    echo "$revision"
+}
+
 list_installed_snaps() {
     # Get list of snaps currently installed. Create global associative array
     #   of installed snaps and their revision numbers: $snaps_installed
@@ -465,12 +472,13 @@ install_prerequisites() {
     echo "Installing prereqs" | tee -a "$LOG"
     declare -n prereqs="$1"
 
+    #if [[ ! ${!prereqs[@]} ]]; then
+    #    # No installs or updates selected.
+    #    echo "No prerequisites to install." | tee -a "$LOG"
+    #    return 0
+    #fi
+
     # Elevate to root privileges before installing.
-    if [[ ! ${!prereqs[@]} ]]; then
-        # No installs or updates selected.
-        echo "No prerequisites to install." | tee -a "$LOG"
-        return 0
-    fi
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
         # Installation cancelled.
@@ -478,13 +486,17 @@ install_prerequisites() {
     fi
 
     for p in ${!prereqs[@]}; do
-        r="${available[$p]}"
+        ra="${available[$p]}"
+        ri=$(get_installed_revision_number $p)
+        if [[ $ri -ge $ra ]]; then
+            continue
+        fi
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
         echo -en "Installing $p from offline source... " | tee -a "$LOG"
-        pkexec "$AS_ROOT" snap ack "$snaps_dir/${p}_${r}.assert" #2>"$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/${p}_${ra}.assert" #2>"$LOG"
         nmcli networking off
-        pkexec "$AS_ROOT" snap install "$snaps_dir/${p}_${r}.snap" #2>"$LOG"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/${p}_${ra}.snap" #2>"$LOG"
         ret=$?
         nmcli networking on
         if [[ $ret -gt 0 ]]; then # failed to install
@@ -514,8 +526,6 @@ install_snaps() {
     if [[ $? -eq 126 ]]; then
         # Installation cancelled.
         echo "Installation cancelled!" | tee -a "$LOG"
-        # Ensure that networking is back on.
-        #nmcli networking on
         return 1
     fi
 
