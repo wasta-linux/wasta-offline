@@ -199,8 +199,13 @@ create_log() {
 get_installed_revision_number() {
     # Returns revision number of installed snap.
     name="$1"
-    revision=$(snap list $name | tail -n +2 | tr -s ' ' | cut -d' ' -f3)
-    echo "$revision"
+    revision=$(snap list $name 2>/dev/null | tail -n +2 | tr -s ' ' | cut -d' ' -f3)
+    if [[ $revision ]]; then
+        echo "$revision"
+        return 0
+    else
+        return 1
+    fi
 }
 
 list_installed_snaps() {
@@ -433,12 +438,11 @@ install_cores() {
         if [[ ${available[$name]} ]]; then
             # Get revision number of available core snap.
             rev_avail="${available[$name]}"
+
             # Test if core snap is already installed.
-            snap list "$name" >/dev/null 2>&1
-            ret=$?
-            if [[ $ret -eq 0 ]]; then
+            if [[ $(get_installed_revision_number $name) ]]; then
                 # Core snap installed. Get revision number.
-                rev_exist=$(snap list $name | grep "$name" | tr -s ' ' | cut -d' ' -f3)
+                rev_exist=$(get_installed_revision_number $name)
                 if [[ $rev_exist -ge $rev_avail ]]; then
                     # Most-recent offline revision already installed.
                     continue
@@ -487,10 +491,17 @@ install_prerequisites() {
 
     for p in ${!prereqs[@]}; do
         ra="${available[$p]}"
-        ri=$(get_installed_revision_number $p)
-        if [[ $ri -ge $ra ]]; then
-            continue
+
+        # Test if prerequisite is already installed.
+        if [[ $(get_installed_revision_number $p) ]]; then
+            # Prerequisite installed. Get revision number.
+            ri=$(get_installed_revision_number $p)
+            if [[ $ri -ge $ra ]]; then
+                # Most-recent offline revision already installed.
+                continue
+            fi
         fi
+
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
         echo -en "Installing $p from offline source... " | tee -a "$LOG"
