@@ -109,7 +109,7 @@ ask_offline_folder() {
         # Convoluted yet functional zenity subprocess inspired by this article:
         #   http://wiki.bash-hackers.org/zenity_--progress
         wo_list=$(
-            find /media /mnt /home/"$USER" -not -path '*/.*' -maxdepth 3 \
+            find /media /mnt /home/"$USER" -maxdepth 3 -not -path '*/.*' \
                 -name 'wasta-offline' -type d 2>/dev/null | tee >(
                     zenity --text="$text" "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" \
                         --auto-kill --no-cancel 2>/dev/null
@@ -972,12 +972,13 @@ window_add_or_update_snaps() {
         exit 0
     fi
 
-    # Return to Remove Snaps Window in only doing online updates.
+    # Return to Remove Snaps Window if doing online updates only.
     if [[ $install_mode -eq 2 ]]; then
         window_remove_snaps
     else
         # Return to Offline Updates Window.
-        window_add_or_update_snaps "$snaps_dir" "$install_mode"
+        #window_add_or_update_snaps "$snaps_dir" "$install_mode"
+        window_home
     fi
 }
 
