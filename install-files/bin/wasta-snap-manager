@@ -976,8 +976,7 @@ window_add_or_update_snaps() {
     if [[ $install_mode -eq 2 ]]; then
         window_remove_snaps
     else
-        # Return to Offline Updates Window.
-        #window_add_or_update_snaps "$snaps_dir" "$install_mode"
+        # Return to Home Window.
         window_home
     fi
 }
