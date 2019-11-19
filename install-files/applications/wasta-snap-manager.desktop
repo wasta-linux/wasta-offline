@@ -1,0 +1,8 @@
+
+[Desktop Entry]
+Name=wasta [Snap] Manager
+Comment=Manage snap apps and settings
+Exec=wasta-snap-manager
+Type=Application
+Icon=wasta-offline
+Categories=GNOME;GTK;System;Utility;
