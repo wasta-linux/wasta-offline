@@ -389,11 +389,6 @@ updates or installs from a <i>'wasta-offline'</i>  folder.
     --column "               " --column "Value" --column "Software Mode" \
     --hide-column=2 "${LIST[@]}" 2>/dev/null)
 
-# Update snaps via wasta-snap-manager if snapd is installed.
-if [[ -x /usr/bin/snap ]]; then
-    update_snaps
-fi
-
 case "$MODE" in
 
 "OFFLINE")
@@ -419,6 +414,11 @@ case "$MODE" in
 ;;
 
 esac
+
+# Update snaps via wasta-snap-manager if snapd is installed.
+if [[ -x /usr/bin/snap ]]; then
+    update_snaps
+fi
 
 # get series, load them up.
 SERIES=$(lsb_release -sc)
