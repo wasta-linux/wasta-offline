@@ -19,7 +19,7 @@ Description: Offline software updates and installs.
  repositories.
  .
  The "wasta-offline local cache repository" consists of software packages
- from another computer's local apt cache of installed software, which is
+ from another computer's locally installed software, which is
  loaded into the wasta-offline folder using "wasta-offline-setup".
  .
  "wasta-offline apt-mirror repositories" are "full mirrors of all software
@@ -39,5 +39,10 @@ Description: Offline software updates and installs.
  disable internet sources, and ONLY use the offline packages.
  .
  After all wasta-offline local software updates and installs are complete,
- when the GUI window is closed , the current computer's "software sources"
+ when the GUI window is closed, the current computer's "software sources"
  (apt software repositories) are restored to their original settings.
+ .
+ Wasta-snap-manager is included to manage snap update settings, update
+ snap apps online or offline, and install snaps offline from the lccal cache
+ repository. It runs automatically with Wasta-offline to update snaps, and it
+ can also be launched separately to use the other features.
