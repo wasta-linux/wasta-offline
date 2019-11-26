@@ -1,5 +1,9 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
+wasta-offline (2.1.2) bionic; urgency=medium
+
+  * build failed. GPG key or changelog problems?
+
+ -- Justin Luth <justin@JL-1804>  Tue, 26 Nov 2019 16:48:04 +0300
+
 wasta-offline (2.1) bionic; urgency=medium
 
   * include support for updating snap packages
@@ -12,10 +16,6 @@ wasta-offline (2.0.0.5) bionic; urgency=medium
   * valid WO folder if either local-cache or apt-mirror
 
  -- Justin Luth <jluth@mail.com>  Sat, 26 Jan 2019 08:42:01 +0300
-=======
-=======
->>>>>>> dae356c... changed "series" to bionic from UNRELEASED
->>>>>>> 608ea18... changed version to 2.1
 
 wasta-offline (2.0.0.4) bionic; urgency=medium
 
