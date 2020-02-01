@@ -67,6 +67,11 @@ while getopts ":his:" opt; do
 done
 shift $((OPTIND-1))
 
+if ! [ $(which snap) ]; then
+  echo "Snap is not installed yet.  (sudo apt-get install snapd) : Exiting..."
+  exit 1
+fi
+
 # System info
 LOG_DATE=$(date +%F-%H-%M)
 HOST=$(uname -n)
@@ -953,16 +958,19 @@ window_add_or_update_snaps() {
 
         tmp=$(mktemp)
         (
-            # Show undefined progress window while refreshing snaps.
+            # Wait for snap refresh background process to start
+            ct=0
             while [[ ! $(pgrep -a snap | grep -v "wasta-snap-manager" \
                 | grep "snap refresh" | cut -d' ' -f1) ]]; do
-                sleep .25
+                sleep 1
+                ((ct+=1))
+                [[ $ct == 4 ]] && break  #maximum 4s wait to start snap refresh
             done
 
+            # Show undefined progress window while refreshing snaps.
             ref_pid=$(pgrep -a snap | grep -v "wasta-snap-manager" \
                 | grep "snap refresh" | cut -d' ' -f1)
             echo "$ref_pid" > $tmp
-            ct=1
             while [[ $(ps --no-headers -p $ref_pid) ]]; do
                 if [[ $ct -lt 60 ]]; then
                     elap=$(date -ud "@$ct" +':%S')
