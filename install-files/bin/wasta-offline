@@ -150,7 +150,7 @@ Hint: although theoretically unsafe, avoid the admin prompts with
 if [ $PKEXEC_ERR -gt 0 ]; then
   zenity --text-info --title="wasta [Offline] Error: Log" --width=650 \
     --height=500 --no-wrap --filename="$LOG" --font="Ubuntu Mono" \
-    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+    --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
     2>/dev/null
  fi
 
@@ -247,7 +247,7 @@ if [[ -z "$WO_LOC" ]]
 then
     zenity --question --no-wrap --height=200 --width=500 \
         --title="wasta [Offline]" \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         --text="<b>Use wasta [Offline] for local software
 updates or installs on this computer?</b>
 
@@ -302,7 +302,7 @@ start folder: $START_FOLDER"
 
     FOLDER_SEL=$(zenity --file-selection \
         --directory --filename="$START_FOLDER" \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         --title="Select a 'wasta-offline' Folder" 2>/dev/null)
     if [[ "$FOLDER_SEL" == *"wasta-offline" ]]
     then
@@ -315,7 +315,7 @@ wasta-offline location: $WO_LOC"
     else
         zenity --error --no-wrap --height=200 \
           --title="wasta [Offline]: Exiting" \
-          --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+          --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
           --text="<b>Selected Folder:</b> $FOLDER_SEL\n
 This folder is not a <b>'wasta-offline'</b> folder.\n
 wasta [Offline] will now exit.\n\n" 2>/dev/null
@@ -328,7 +328,7 @@ if [[ -z "$WO_LOC" ]]
 then
     zenity --error --no-wrap --height=200 \
         --title="wasta [Offline]: Exiting" \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         --text "No <b>'wasta-offline'<b> folder has been set.\n
 wasta [Offline] will now exit.\n\n" 2>/dev/null
     scriptExit
@@ -375,7 +375,7 @@ fi
 
 MODE=""
 MODE=$(zenity --list --title="wasta [Offline]" --width=500 --height=550 \
-    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+    --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
     --text="<b>wasta [Offline]</b> is used for local software
 updates or installs from a <i>'wasta-offline'</i>  folder.
 
@@ -543,7 +543,7 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
             ) | zenity --progress \
                 --title="wasta [Offline]: Generating Software Package List" \
                 --pulsate --auto-close --width=500 --height=200 \
-                --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+                --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
                 --text="Generating software list for wasta [Offline]...\n\n\n\n" \
                 2>/dev/null
 
@@ -597,7 +597,7 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
 *wasta [Offline] WILL RUN WITHOUT THE OFFLINE LOCAL-CACHE*\n\n" | tee -a "$LOG"
         zenity --error --no-wrap --height=200 \
           --title="wasta [Offline] PACKAGES error" \
-          --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+          --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
           --text="<b>Local-cache is DISABLED due to an error</b>\n
 Check the logs ($LOG)
 for Package errors.
@@ -707,7 +707,7 @@ if [ "${MIRROR_BASE}" ]; then
     ) | zenity --progress --title="wasta [Offline]" \
         --text="Adding wasta [Offline] ${MIRROR_BASE} repositories...\n\n\n\n\n" \
         --pulsate --auto-close --no-cancel --width=500 --height=200 \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         2>/dev/null
 
     if [ "$?" -ne 0 ]
@@ -747,7 +747,7 @@ echo "Info: apt-get update took approximately  $COUNT seconds." | tee -a "$LOG"
 ) | zenity --progress --title="wasta [Offline]: Updating Software Lists" \
         --text="Updating software lists...\n\n\n\n\n" \
         --pulsate --auto-close --width=500 --height=200 \
-        --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+        --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         2>/dev/null
 
 if [ "$?" -ne 0 ]
@@ -765,7 +765,7 @@ fi
 
 zenity --info --no-wrap --height=200 --width=500 \
     --title="wasta [Offline]: Ready" --ok-label="Finished" \
-    --window-icon=/usr/share/icons/hicolor/64x64/apps/wasta-offline.png \
+    --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
     --text="<b>wasta [Offline] is ready to be used for local
 software updates or installs on this computer</b>\n
 

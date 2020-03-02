@@ -4,14 +4,14 @@ Priority: extra
 Maintainer: Rik Shaw <rikshaw76@gmail.com>
 Build-Depends: debhelper (>= 9.0.0)
 Standards-Version: 3.9.7
-Homepage: https://launchpad.net/~wasta-linux
+Homepage: https://github.com/wasta-linux/wasta-offline
 
 Package: wasta-offline
 Architecture: all
 Depends: at, policykit-1, rsync, ${shlibs:Depends}, ${misc:Depends}
 Suggests: wasta-offline-setup
 Description: Offline software updates and installs.
- Wasta-offline modifies the current computer's "software sources" (or apt
+ Wasta-Offline modifies the current computer's "software sources" (or apt
  software repositories) to add local repositories from a wasta-offline
  folder.
  .
@@ -20,29 +20,29 @@ Description: Offline software updates and installs.
  .
  The "wasta-offline local cache repository" consists of software packages
  from another computer's locally installed software, which is
- loaded into the wasta-offline folder using "wasta-offline-setup".
+ loaded into the wasta-offline folder using "Wasta-Offline-Setup".
  .
  "wasta-offline apt-mirror repositories" are "full mirrors of all software
- available in corresponding internet repositories."  They are loaded into
- the wasta-offline folder using "apt-mirror".  The defined "base path" for
+ available in corresponding internet repositories." They are loaded into
+ the wasta-offline folder using "apt-mirror". The defined "base path" for
  apt-mirror needs to be set to "wasta-offline/apt-mirror", so that
- wasta-offline will know where to find these "wasta-offline apt-mirror
+ Wasta-Offline will know where to find these "wasta-offline apt-mirror
  repositories."  For example, then, a "wasta-offline apt-mirror repository"
- of the main wasta-Linux PPA would be in this folder:
+ of the main Wasta-Linux PPA would be in this folder:
  .
  wasta-offline/apt-mirror/mirror/ppa.launchpad.net/wasta-linux/wasta
  .
  Once the apt sources are modified to prefer these wasta-offline
  repositories, a zenity GUI window is kept open while a user performs any
  desired local software updates and installs with other utilities such as
- MintUpdate, Synaptic Package Manager, etc.  The user has the option to
+ MintUpdate, Synaptic Package Manager, etc. The user has the option to
  disable internet sources, and ONLY use the offline packages.
  .
- After all wasta-offline local software updates and installs are complete,
+ After all Wasta-Offline local software updates and installs are complete,
  when the GUI window is closed, the current computer's "software sources"
  (apt software repositories) are restored to their original settings.
  .
- Wasta-snap-manager is included to manage snap update settings, update
- snap apps online or offline, and install snaps offline from the lccal cache
- repository. It runs automatically with Wasta-offline to update snaps, and it
+ Wasta-Snap-Manager is included to manage snap update settings, update
+ snap apps online or offline, and install snaps offline from the local cache
+ repository. It runs automatically with Wasta-Offline to update snaps, and it
  can also be launched separately to use the other features.

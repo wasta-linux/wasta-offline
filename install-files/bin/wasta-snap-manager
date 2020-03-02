@@ -86,7 +86,7 @@ SUM=$(($INET + $OFFL))
 ZTITLE="Wasta [Snap] Manager"
 ZHEIGHT=450
 ZWIDTH=650
-ZICON=/usr/share/icons/hicolor/512x512/apps/wasta-offline.png
+ZICON=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg
 ZICNM=wasta-offline
 ZDEFAULTS=(
     --title="$ZTITLE" --height="$ZHEIGHT" --width="$ZWIDTH" \
