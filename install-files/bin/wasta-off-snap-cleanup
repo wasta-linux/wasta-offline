@@ -1,0 +1,119 @@
+#!/bin/bash
+
+# ==============================================================================
+# wasta-off-snap-cleanup
+#
+#   This script checks the given wasta-offline folder for snaps improperly
+#       copied directly under the "snaps" folder. If such snap packages are
+#       found, this script determines the architecture of each snap, verifies
+#       that a relevant architecture folder exists under the "snaps" folder,
+#       and moves the snap and its assertion to that subfolder.
+#
+#   Depends on squashfs-tools apt package to uncompress snap packages.
+#
+# ==============================================================================
+
+# TODO: Does this script need root privileges?
+
+# ------------------------------------------------------------------------------
+# Argument verification
+# ------------------------------------------------------------------------------
+# This script is only launched by the system and requires a directory containing
+#   snaps as an argument.
+if [[ -z "$1" ]]; then
+    # No argument given. Exiting.
+    echo "Error: no argument given for snaps directory. Exiting."
+    exit 1
+else
+    SNAPS_DIR=$(realpath "$1" 2>/dev/null) # realpath removes trailing '/'s
+fi
+
+# Need to be able to handle 2 types of $SNAPS_DIRs:
+#   1. "wasta-offline" folder -> Set $SNAPS_DIR as wasta-offline/local-cache/snaps.
+#   2. any other folder passed -> Set $SNAPS_DIR as passed argument.
+if [[ $SNAPS_DIR =~ ^.*wasta-offline$ ]]; then
+    SNAPS_DIR="$SNAPS_DIR"/local-cache/snaps
+    # Make sure $SNAPS_DIR exists.
+    mkdir --mode=777 --parents "$SNAPS_DIR"
+fi
+
+# Check that given SNAPS_DIR is writable.
+if [[ ! -w  "$SNAPS_DIR" ]]; then
+    # Snaps directory not writable. Exit script.
+    echo "Error: snaps directory not writable. Exiting."
+    exit 1
+fi
+
+# Check for snaps in given SNAPS_DIR.
+SNAP_FILES=$(find "$SNAPS_DIR" -maxdepth 1 -name '*.snap')
+if [[ -z $SNAP_FILES ]]; then
+    # Snaps folder contains no snaps. Exit script.
+    exit 0
+fi
+
+# ------------------------------------------------------------------------------
+# Gather architecture info from snaps.
+# ------------------------------------------------------------------------------
+# Create temp folder for extracted files.
+TEMPLATE="wo-yaml.XXXX"
+tmp_yaml_dir=$(mktemp -d "$TEMPLATE" --tmpdir)
+
+# Create associative array of: ([snap_rev], [(arch1, arch2, archN)])
+#   Valid arches: s390x, ppc64el, arm64, armhf, amd64, i386, all
+#       https://snapcraft.io/docs/architectures
+#   A snap could possibly run on multiple arch's without specifying "all".
+#       So, I suppose in that case the snap would need to be copied multiple
+#       times: once into each relevant arch folder!
+declare -A wayward_snaps
+while IFS= read -r s; do
+    f=${s##*/} # file name_rev.snap (no path)
+    n=${f%.*} # snap name_rev (no extension)
+    # Extract /meta/snap.yaml to tempdir
+    unsquashfs -dest "$tmp_yaml_dir/$n" "$s" /meta/snap.yaml >/dev/null
+    # grep the arch[es] from the yaml file
+    y="$tmp_yaml_dir/$n/meta/snap.yaml"
+    arch_data=$(grep -A6 'architectures:' "$y")
+    # Build list of given architectures.
+    ct=1
+    arches=()
+    while IFS= read -r l; do
+        if [[ $ct -eq 1 ]]; then
+            # first l is 'architectures:'
+            ct=$((ct+1))
+            continue
+        elif [[ $l =~ ^-[[:space:]] ]]; then
+            # subsequent relevant l's start with '- '
+            l=${l:2}
+            arches+=("$l")
+            ct=$((ct+1))
+        else
+            # No more arches to list.
+            break
+        fi
+    done <<< "$arch_data"
+    wayward_snaps["$n"]="${arches[@]}"
+done <<< "$SNAP_FILES"
+
+# ------------------------------------------------------------------------------
+# Copy snaps to arch-specific subfolders. Remove original snap at the end.
+# ------------------------------------------------------------------------------
+for s in ${!wayward_snaps[@]}; do
+    for a in ${wayward_snaps[$s]}; do
+        # Create arch-specific subfolder(s).
+        mkdir -p "$SNAPS_DIR/$a"
+        # Copy snaps to arch-specific folder.
+        cp "$SNAPS_DIR/$s.snap" "$SNAPS_DIR/$s.assert" "$SNAPS_DIR/$a"
+        if [[ $? -ne 0 ]]; then
+            # copy error
+            echo "There was an error while copying $s files into $a. Skipping."
+            continue
+        fi
+    done
+    rm "$SNAPS_DIR/$s.snap" "$SNAPS_DIR/$s.assert"
+done
+
+# Remove temp folder.
+rm -rf /tmp/wo-yaml*
+
+echo "Existing snap packages moved into relevant architecture subfolders."
+exit 0
