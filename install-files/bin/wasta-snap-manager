@@ -43,8 +43,6 @@ SNAPS_DIR=''
 INET=0
 OFFL=0
 
-BASE=$(realpath $(dirname $0))
-
 # ---------------------------------------------------------------------------
 # Parse options passed.
 # ---------------------------------------------------------------------------
@@ -188,8 +186,8 @@ create_log() {
     # Move wayward snaps to arch-specific subfolders.
     # TODO: This is transitional. The initial version of wasta-offline-snap-setup
     #   placed snaps of all architectures together in the same folder.
-    if [[ $BASE/wasta-off-snap-cleanup ]]; then
-        "$BASE"/wasta-off-snap-cleanup "$SNAPS_DIR"
+    if [[ $(which wasta-off-snap-cleanup) ]]; then
+        wasta-off-snap-cleanup "$SNAPS_DIR"
     fi
 
     snap --version | tee -a "$LOG"
