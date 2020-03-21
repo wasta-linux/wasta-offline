@@ -16,6 +16,7 @@ POLKIT=/usr/share/polkit-1/actions
 bins=(
     wasta-snap-manager
     wasta-snap-manager-root
+    wasta-off-snap-cleanup
     wasta-offline
     wasta-offline-root
 )
