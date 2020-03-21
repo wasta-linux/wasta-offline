@@ -10,17 +10,19 @@ if [[ $(id -u) -ne 0 && ! $1 == '-h' ]]; then
 fi
 
 BASE=$(realpath $(dirname $0))
-BIN=/usr/bin
+BIN=/home/$SUDO_USER/.local/bin
 POLKIT=/usr/share/polkit-1/actions
 
 bins=(
+    wasta-snap-manager
     wasta-snap-manager-root
+    wasta-offline
     wasta-offline-root
 )
 
 actions=(
-    org.wasta.apps.wasta-snap-manager-root.policy
-    org.wasta.apps.wasta-offline.policy
+    org.wasta.apps.test-wasta-snap-manager-root.policy
+    org.wasta.apps.test-wasta-offline.policy
 )
 
 if [[ ! $1 ]]; then
@@ -28,8 +30,8 @@ if [[ ! $1 ]]; then
     cd "$BIN"
     for b in ${bins[@]}; do
         if [[ ! -e ./$b ]]; then
-            cp -s "$BASE/install-files/bin/$b" .
-            echo "$BASE/install-files/bin/$b -> $BIN"
+            cp -s "$BASE/../install-files/bin/$b" .
+            echo "$BASE/../install-files/bin/$b -> $BIN"
         fi
     done
 
@@ -37,8 +39,8 @@ if [[ ! $1 ]]; then
     cd "$POLKIT"
     for a in ${actions[@]}; do
         if [[ ! -e ./$a ]]; then
-            cp -s "$BASE/install-files/$a" .
-            echo "$BASE/install-files/$a -> $POLKIT"
+            cp -s "$BASE/$a" .
+            echo "$BASE/$a -> $POLKIT"
         fi
     done
 
