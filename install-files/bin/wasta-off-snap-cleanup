@@ -40,7 +40,7 @@ fi
 # ------------------------------------------------------------------------------
 # Create temp folder for extracted files.
 TEMPLATE="wo-yaml.XXXX"
-tmp_yaml_dir=$(mktemp -d "$TEMPLATE" --tmpdir)
+tmp_yaml_dir=$(mktemp -d "$TEMPLATE")
 
 # Create associative array of: ([snap_rev], [(arch1, arch2, archN)])
 #   Valid arches: s390x, ppc64el, arm64, armhf, amd64, i386, all
