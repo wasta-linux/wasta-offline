@@ -8,7 +8,7 @@ Homepage: https://github.com/wasta-linux/wasta-offline
 
 Package: wasta-offline
 Architecture: all
-Depends: at, policykit-1, rsync, ${shlibs:Depends}, ${misc:Depends}
+Depends: at, policykit-1, rsync, squashfs-tools, ${shlibs:Depends}, ${misc:Depends}
 Suggests: wasta-offline-setup
 Description: Offline software updates and installs.
  Wasta-Offline modifies the current computer's "software sources" (or apt
