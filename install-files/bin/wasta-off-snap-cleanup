@@ -18,36 +18,20 @@
 # ------------------------------------------------------------------------------
 # Argument verification
 # ------------------------------------------------------------------------------
-# This script is only launched by the system and requires a directory containing
-#   snaps as an argument.
+# This script is only launched by wasta-snap-manager and requires a directory
+#   as an argument.
 if [[ -z "$1" ]]; then
-    # No argument given. Exiting.
-    echo "Error: no argument given for snaps directory. Exiting."
+    # No argument given. Skipping.
+    echo "Error: no argument given for snaps directory. Skipping snap cleanup."
     exit 1
 else
     SNAPS_DIR=$(realpath "$1" 2>/dev/null) # realpath removes trailing '/'s
 fi
 
-# Need to be able to handle 2 types of $SNAPS_DIRs:
-#   1. "wasta-offline" folder -> Set $SNAPS_DIR as wasta-offline/local-cache/snaps.
-#   2. any other folder passed -> Set $SNAPS_DIR as passed argument.
-if [[ $SNAPS_DIR =~ ^.*wasta-offline$ ]]; then
-    SNAPS_DIR="$SNAPS_DIR"/local-cache/snaps
-    # Make sure $SNAPS_DIR exists.
-    mkdir --mode=777 --parents "$SNAPS_DIR"
-fi
-
-# Check that given SNAPS_DIR is writable.
-if [[ ! -w  "$SNAPS_DIR" ]]; then
-    # Snaps directory not writable. Exit script.
-    echo "Error: snaps directory not writable. Exiting."
-    exit 1
-fi
-
 # Check for snaps in given SNAPS_DIR.
 SNAP_FILES=$(find "$SNAPS_DIR" -maxdepth 1 -name '*.snap')
 if [[ -z $SNAP_FILES ]]; then
-    # Snaps folder contains no snaps. Exit script.
+    # Snaps folder contains no snaps. Exit script silently.
     exit 0
 fi
 
