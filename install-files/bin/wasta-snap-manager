@@ -77,8 +77,8 @@ fi
 LOG_DATE=$(date +%F-%H-%M)
 HOST=$(uname -n)
 
-# PolicyKit root app path.
-AS_ROOT=/usr/bin/wasta-snap-manager-root
+# PolicyKit root app path. Using "which" allows for testing from alternate path.
+AS_ROOT=$(which wasta-snap-manager-root)
 
 # Starting value for determining update sources.
 SUM=$(($INET + $OFFL))
@@ -222,6 +222,15 @@ get_installed_revision_number() {
     fi
 }
 
+get_snap_arch() {
+    snap_rev="$1"
+    snaps_dir="$2"
+    location=$(find "$snaps_dir" -maxdepth 2 -name "$snap_rev"'*.snap')
+    arch_path="${location%/*.snap}"
+    arch="${arch_path##*/}"
+    echo "$arch"
+}
+
 list_installed_snaps() {
     # Get list of snaps currently installed. Create global associative array
     #   of installed snaps and their revision numbers: $snaps_installed
@@ -251,25 +260,29 @@ list_installed_snaps() {
 list_available_snaps() {
     snaps_dir="$1"
 
-    # Get offline snaps in $SNAPS_DIR.
-    available_list=$(find "$snaps_dir"/ -name '*.snap')
+    # Get system architecture.
+    sys_arch=$(dpkg --print-architecture)
+
+    # Get offline snaps in $snaps_dir/all and $snaps_dir/$sys_arch.
+    #   This mixes arch designations, but the correct arch will found again later.
+    available_list=$(find "$snaps_dir/all" "$snaps_dir/$sys_arch" -name '*.snap')
 
     # Build associative array of available snaps and revisions in SNAPS_DIR.
     #   The revision numbers are space-delimited; e.g. ("[skype]"="54 57 ").
-    declare -A snaps_avail_all
-    for i in ${available_list[@]}; do
+    declare -A snaps_avail
+    while IFS= read -r i; do
         name_rev=${i##*/}
         name_rev=${name_rev%.snap}
         rev=${name_rev##*_}
         name=${name_rev%_*}
-        snaps_avail_all["$name"]+="$rev "
-    done
+        snaps_avail["$name"]+="$rev "
+    done <<< "${available_list[@]}"
 
     # Sort revisions listed for each snap, choose highest one.
     declare -Ag snaps_available
-    for name in ${!snaps_avail_all[@]}; do
+    for name in ${!snaps_avail[@]}; do
         top=$(
-            for r in ${snaps_avail_all[$name]}; do
+            for r in ${snaps_avail[$name]}; do
                 echo $r
             done | sort -nr | head -1
         )
@@ -295,11 +308,13 @@ list_updatable_snaps() {
 list_prerequisites() {
     # Find and list the given snap's prerequisites.
     snap_file="$1"
+    arch="$2"
     unset snap_prereqs[@]
     declare -Ag snap_prereqs
-    tmpd=$(mktemp -d)
-    pkexec "$AS_ROOT" mount "${SNAPS_DIR}/${snap_file}" "$tmpd"
-
+    template="wo-yaml.XXXX"
+    tmpd=$(mktemp -d "$template" --tmpdir)
+    # Use unsquashfs to get snap.yaml contents.
+    unsquashfs -force -dest "$tmpd" "$SNAPS_DIR/$arch/$snap_file" /meta/snap.yaml
     yaml="${tmpd}/meta/snap.yaml"
     #expr='s/.*:\s(.*)/\1/' # didn't omit parts; e.g. "default-provider: prereq:part"
     expr='s/.*:\s(.*)(:|$).*/\1/' # omits part if 2nd colon found
@@ -314,7 +329,6 @@ list_prerequisites() {
         done
     fi
 
-    pkexec "$AS_ROOT" umount "$tmpd"
     rm -r "$tmpd"
 }
 
@@ -467,9 +481,12 @@ install_cores() {
             echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
             echo -en "Installing $name from offline source... " | tee -a "$LOG"
 
+            # Get arch subfolder for snap.
+            arch=$(get_snap_arch "${name}_${rev_avail}" "$snaps_dir")
+
             # Acknowledge assertion and install snap.
-            pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev_avail}.assert"
-            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev_avail}.snap" 2>/dev/null
+            pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${name}_${rev_avail}.assert"
+            pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${name}_${rev_avail}.snap" 2>/dev/null
             if [[ $? -gt 0 ]]; then
                 # Some install error.
                 change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
@@ -516,12 +533,15 @@ install_prerequisites() {
             fi
         fi
 
+        # Get arch subfolder for snap.
+        arch=$(get_snap_arch "${p}_${ra}" "$snaps_dir")
+
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
         echo -en "Installing $p from offline source... " | tee -a "$LOG"
-        pkexec "$AS_ROOT" snap ack "$snaps_dir/${p}_${ra}.assert" #2>"$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${p}_${ra}.assert" #2>"$LOG"
         nmcli networking off
-        pkexec "$AS_ROOT" snap install "$snaps_dir/${p}_${ra}.snap" #2>"$LOG"
+        pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${p}_${ra}.snap" #2>"$LOG"
         ret=$?
         nmcli networking on
         if [[ $ret -gt 0 ]]; then # failed to install
@@ -540,13 +560,13 @@ install_snaps() {
     declare -n to_install="$2"
     snaps_dir="$3"
 
-    # Elevate to root privileges before installing.
     if [[ ! ${to_install[@]} ]]; then
         # No installs or updates selected.
         echo "Nothing to install or update." | tee -a "$LOG"
         return 0
     fi
 
+    # Elevate to root privileges before installing.
     pkexec "$AS_ROOT" elevate
     if [[ $? -eq 126 ]]; then
         # Installation cancelled.
@@ -565,14 +585,17 @@ install_snaps() {
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
         echo -en "Installing $name from offline source... " | tee -a "$LOG"
 
+        # Get arch subfolder for snap.
+        arch=$(get_snap_arch "${name}_${rev}" "$snaps_dir")
+
         # List and install prerequisites.
-        list_prerequisites "${name}_${rev}.snap"
+        list_prerequisites "${name}_${rev}.snap" "$arch"
         if [[ ! ${!snap_prereqs[@]} == '' ]]; then
             install_prerequisites "snap_prereqs"
         fi
 
         # Acknowledge assertion.
-        pkexec "$AS_ROOT" snap ack "$snaps_dir/${name}_${rev}.assert" #2>"$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${name}_${rev}.assert" #2>"$LOG"
 
         # Force networking to be offline to avoid downloading snap prereqs.
         # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
@@ -581,11 +604,11 @@ install_snaps() {
 
         # Install snap. Use --classic flag if necessary.
         if [[ $confinement == 'classic' ]]; then
-            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" --classic 2>&1 | tee -a "$LOG"
-            ret=$?
+            pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${name}_${rev}.snap" --classic 2>&1 | tee -a "$LOG"
+            ret=${PIPESTATUS[0]}
         else
-            pkexec "$AS_ROOT" snap install "$snaps_dir/${name}_${rev}.snap" 2>&1 | tee -a "$LOG"
-            ret=$?
+            pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${name}_${rev}.snap" 2>&1 | tee -a "$LOG"
+            ret=${PIPESTATUS[0]}
         fi
 
         # Restore networking.
