@@ -43,6 +43,7 @@ SNAPS_DIR=''
 INET=0
 OFFL=0
 
+BASE=$(realpath $(dirname $0))
 
 # ---------------------------------------------------------------------------
 # Parse options passed.
@@ -97,6 +98,7 @@ ZPROGDEFS=(
 )
 
 # Core snaps assumed.
+# TODO: Need to add core20 once it's released (before WL-20.04 is released)
 CORES=( core core18 )
 
 
@@ -175,13 +177,20 @@ create_log() {
     if [[ $SNAPS_DIR =~ ^.*wasta-offline$ ]]; then
         SNAPS_DIR="$SNAPS_DIR"/local-cache/snaps
         # Make sure SNAPS_DIR exists.
-        mkdir -p "$SNAPS_DIR"
+        mkdir --mode=777 --parents "$SNAPS_DIR"
     fi
 
     # Initial log entry
     echo "-------------------------------------------------------" | tee -a "$LOG"
     echo "*** Installing/updating snaps                          " | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
+
+    # Move wayward snaps to arch-specific subfolders.
+    # TODO: This is transitional. The initial version of wasta-offline-snap-setup
+    #   placed snaps of all architectures together in the same folder.
+    if [[ $BASE/wasta-off-snap-cleanup ]]; then
+        "$BASE"/wasta-off-snap-cleanup "$SNAPS_DIR"
+    fi
 
     snap --version | tee -a "$LOG"
     echo | tee -a "$LOG"
