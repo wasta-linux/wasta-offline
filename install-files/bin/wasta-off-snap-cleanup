@@ -82,11 +82,12 @@ rm -r "$tmp_yaml_dir"
 # ------------------------------------------------------------------------------
 # Copy snaps to arch-specific subfolders. Remove original snap at the end.
 # ------------------------------------------------------------------------------
-for s in ${!wayward_snaps[@]}; do
-    for a in ${wayward_snaps[$s]}; do
+for s in "${!wayward_snaps[@]}"; do
+    for a in "${wayward_snaps[$s]}"; do
         # Create arch-specific subfolder(s).
         mkdir -p "$SNAPS_DIR/$a"
         # Copy snaps to arch-specific folder.
+        echo "Moving $s.snap and $s.assert into $a/..."
         cp "$SNAPS_DIR/$s.snap" "$SNAPS_DIR/$s.assert" "$SNAPS_DIR/$a"
         if [[ $? -ne 0 ]]; then
             # copy error
