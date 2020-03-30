@@ -1000,7 +1000,7 @@ window_add_or_update_snaps() {
             # Show undefined progress window while refreshing snaps.
             ref_pid=$(pgrep -a snap | grep -v "wasta-snap-manager" \
                 | grep "snap refresh" | cut -d' ' -f1)
-            echo "$ref_pid" > $tmp
+            echo "$ref_pid" > "$tmp"
             while [[ $(ps --no-headers -p $ref_pid) ]]; do
                 if [[ $ct -lt 60 ]]; then
                     elap=$(date -ud "@$ct" +':%S')
@@ -1018,10 +1018,10 @@ window_add_or_update_snaps() {
 
         if [[ $ret -gt 0 ]]; then
             # Some error or user cancelled.
-            ref_pid=$(cat $tmp)
+            ref_pid=$(cat "$tmp")
             pkexec "$AS_ROOT" kill $pk_pid $ref_pid
         fi
-        rm $tmp
+        rm "$tmp"
     fi
 
     # Exit now if launched from wasta-offline.
