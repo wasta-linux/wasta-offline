@@ -123,7 +123,8 @@ ask_offline_folder() {
         if [[ -z $wo_list ]]; then
             START_FOLDER=/home/"$USER"/
         else
-            for d in ${wo_list[@]}; do
+            while IFS= read -r d; do
+            #for d in ${wo_list[@]}; do
                 loc_cache=$(find "$d" -maxdepth 1 -name 'local-cache' -type d 2>/dev/null)
                 if [[ $loc_cache =~ ^/media/.*$ ]]; then
                     # Automatically accept 'wasta-offline' folder in /media/...
@@ -141,7 +142,7 @@ ask_offline_folder() {
                     START_FOLDER=/home/"$USER"/
                     title="Choose the offline snaps folder"
                 fi
-            done
+            done <<< "${wo_list[@]}"
         fi
         SNAPS_DIR=$(
             zenity --file-selection --directory --title="$title" \
@@ -538,10 +539,10 @@ install_prerequisites() {
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
         echo -en "Installing $p from offline source... " | tee -a "$LOG"
         pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${p}_${ra}.assert" #2>"$LOG"
-        nmcli networking off
-        pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${p}_${ra}.snap" #2>"$LOG"
+        #nmcli networking off
+        pkexec "$AS_ROOT" unshare -n snap install "$snaps_dir/$arch/${p}_${ra}.snap" #2>"$LOG"
         ret=$?
-        nmcli networking on
+        #nmcli networking on
         if [[ $ret -gt 0 ]]; then # failed to install
             # Some other install error.
             echo -e "error, skipped. " | tee -a "$LOG"
@@ -598,19 +599,19 @@ install_snaps() {
         # Force networking to be offline to avoid downloading snap prereqs.
         # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
         #   - Better solution: temporarily convince snap that there is no network, but how?
-        nmcli networking off
+        #nmcli networking off
 
         # Install snap. Use --classic flag if necessary.
         if [[ $confinement == 'classic' ]]; then
-            pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${name}_${rev}.snap" --classic 2>&1 | tee -a "$LOG"
+            pkexec "$AS_ROOT" unshare -n snap install "$snaps_dir/$arch/${name}_${rev}.snap" --classic 2>&1 | tee -a "$LOG"
             ret=${PIPESTATUS[0]}
         else
-            pkexec "$AS_ROOT" snap install "$snaps_dir/$arch/${name}_${rev}.snap" 2>&1 | tee -a "$LOG"
+            pkexec "$AS_ROOT" unshare -n snap install "$snaps_dir/$arch/${name}_${rev}.snap" 2>&1 | tee -a "$LOG"
             ret=${PIPESTATUS[0]}
         fi
 
         # Restore networking.
-        nmcli networking on
+        #nmcli networking on
 
         if [[ $ret -gt 0 ]]; then # failed to install
             change=$(snap changes | tail -n2 | head -1 | tr -s ' ' \
