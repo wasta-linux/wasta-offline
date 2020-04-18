@@ -124,7 +124,6 @@ ask_offline_folder() {
             START_FOLDER=/home/"$USER"/
         else
             while IFS= read -r d; do
-            #for d in ${wo_list[@]}; do
                 loc_cache=$(find "$d" -maxdepth 1 -name 'local-cache' -type d 2>/dev/null)
                 if [[ $loc_cache =~ ^/media/.*$ ]]; then
                     # Automatically accept 'wasta-offline' folder in /media/...
