@@ -22,7 +22,13 @@ xgettext --package-name="wasta-offline" -L Shell -o "${dest_path}" "${app_path}"
 ec=$?
 
 if [[ $ec -eq 0 ]]; then
-    echo -e "\nCreated ${dest_file} in ${dest_dir}.\n"
+    if [[ ! -e ${dest_path} ]]; then
+        # There were no messages exported from the app.
+        echo -e "\nNo messages exported, so $dest_file was not created.\n"
+        exit 1
+    else
+        echo -e "\nCreated $dest_file in $dest_dir.\n"
+    fi
 else
     echo "Error while creating $dest_file file. Exiting."
     exit $ec
