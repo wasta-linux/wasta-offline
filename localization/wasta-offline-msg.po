@@ -4,7 +4,7 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"POT-Creation-Date: 2020-04-24 06:17+0100\n"
+"POT-Creation-Date: 2020-04-24 12:09+0100\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -27,8 +27,8 @@ msgstr ""
 msgid "wasta [Offline] Error: Log"
 msgstr ""
 
-#: install-files/bin/wasta-offline:256 install-files/bin/wasta-offline:392
-#: install-files/bin/wasta-offline:728
+#: install-files/bin/wasta-offline:256 install-files/bin/wasta-offline:383
+#: install-files/bin/wasta-offline:718
 msgid "wasta [Offline]"
 msgstr ""
 
@@ -44,7 +44,7 @@ msgid ""
 "'wasta-offline' folder."
 msgstr ""
 
-#: install-files/bin/wasta-offline:264 install-files/bin/wasta-offline:399
+#: install-files/bin/wasta-offline:264 install-files/bin/wasta-offline:387
 msgid "NOTE:"
 msgstr ""
 
@@ -63,7 +63,7 @@ msgstr ""
 msgid "(none)"
 msgstr ""
 
-#: install-files/bin/wasta-offline:327 install-files/bin/wasta-offline:340
+#: install-files/bin/wasta-offline:327
 msgid "wasta [Offline]: Exiting"
 msgstr ""
 
@@ -77,176 +77,154 @@ msgid ""
 "wasta [Offline] will now exit."
 msgstr ""
 
-#: install-files/bin/wasta-offline:342
-msgid ""
-"No <b>'wasta-offline'<b> folder has been set.\\n\n"
-"wasta [Offline] will now exit."
-msgstr ""
-
-#: install-files/bin/wasta-offline:369 install-files/bin/wasta-offline:385
-msgid "OFFLINE ONLY:"
-msgstr ""
-
 #: install-files/bin/wasta-offline:370
 msgid ""
-"       Only software from the wasta-offline\n"
-"       folder may be updated or installed.\n"
-"\n"
-"*** NO INTERNET CONNECTION WILL BE USED ***\n"
-"\n"
+"ONLY 'wasta-offline' folder\n"
+"*** NO INTERNET CONNECTION WILL BE USED ***"
 msgstr ""
 
-#: install-files/bin/wasta-offline:376
-msgid "OFFLINE AND INTERNET:"
-msgstr ""
-
-#: install-files/bin/wasta-offline:377
+#: install-files/bin/wasta-offline:373
 msgid ""
-"       Selected software updates or installs that\n"
-"       are not found in the wasta-offline folder\n"
-"       will be downloaded from the internet.\n"
-"\n"
+"BOTH 'wasta-offline' folder and internet\n"
 "*** INTERNET DOWNLOADS MAY BE SLOW or EXPENSIVE ***"
 msgstr ""
 
-#: install-files/bin/wasta-offline:386
-msgid ""
-"       Only software from the wasta-offline\n"
-"       folder may be updated or installed."
+#: install-files/bin/wasta-offline:378
+msgid "ONLY 'wasta-offline' folder"
 msgstr ""
 
-#: install-files/bin/wasta-offline:394
-msgid ""
-"<b>wasta [Offline]</b> is used for local software\n"
-"updates or installs from a <i>'wasta-offline'</i>  folder.\n"
-"\n"
-"<b>wasta-offline folder:</b>"
+#: install-files/bin/wasta-offline:385
+msgid "Install or update local software from a <i>'wasta-offline'</i> folder."
 msgstr ""
 
-#: install-files/bin/wasta-offline:399
+#: install-files/bin/wasta-offline:387
 msgid ""
 "Be sure to close any other open software\n"
 "    management programs such as 'Update Manager' or\n"
 "    'Synaptic Package Manager' before continuing."
 msgstr ""
 
-#: install-files/bin/wasta-offline:403
-msgid "SELECT the wasta [Offline] software mode:"
+#: install-files/bin/wasta-offline:391
+msgid "wasta-offline folder:"
 msgstr ""
 
-#: install-files/bin/wasta-offline:404
+#: install-files/bin/wasta-offline:393
+msgid "SELECT the wasta [Offline] software source:"
+msgstr ""
+
+#: install-files/bin/wasta-offline:394
 msgid "Value"
 msgstr ""
 
-#: install-files/bin/wasta-offline:404
-msgid "Software Mode"
+#: install-files/bin/wasta-offline:394
+msgid "Software Source"
 msgstr ""
 
-#: install-files/bin/wasta-offline:412
+#: install-files/bin/wasta-offline:402
 msgid "OFFLINE Mode selected"
 msgstr ""
 
-#: install-files/bin/wasta-offline:424
+#: install-files/bin/wasta-offline:414
 msgid "OFFLINE AND INTERNET Mode selected"
 msgstr ""
 
-#: install-files/bin/wasta-offline:553
+#: install-files/bin/wasta-offline:543
 #, sh-format
 msgid ""
 "#Generating software list for wasta [Offline]...\\n\\nElapsed Time: $COUNT "
 "seconds\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:559
+#: install-files/bin/wasta-offline:549
 #, sh-format
 msgid "Info: dpkg-scanpackages took approximately $COUNT sec."
 msgstr ""
 
-#: install-files/bin/wasta-offline:565
+#: install-files/bin/wasta-offline:555
 msgid "wasta [Offline]: Generating Software Package List"
 msgstr ""
 
-#: install-files/bin/wasta-offline:568
+#: install-files/bin/wasta-offline:558
 msgid "Generating software list for wasta [Offline]...\\n\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:620
+#: install-files/bin/wasta-offline:610
 msgid "wasta [Offline] PACKAGES error"
 msgstr ""
 
-#: install-files/bin/wasta-offline:622
+#: install-files/bin/wasta-offline:612
 msgid "Local-cache is DISABLED due to an error"
 msgstr ""
 
-#: install-files/bin/wasta-offline:623
+#: install-files/bin/wasta-offline:613
 #, sh-format
 msgid ""
 "Check the logs ($LOG)\n"
 "for Package errors."
 msgstr ""
 
-#: install-files/bin/wasta-offline:626
+#: install-files/bin/wasta-offline:616
 msgid "Internet and mirror repositories will still work, so not aborting."
 msgstr ""
 
-#: install-files/bin/wasta-offline:664
+#: install-files/bin/wasta-offline:654
 msgid "#Creating Packages files from Packages.gz ...\\n\\n\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:678
+#: install-files/bin/wasta-offline:668
 msgid "#Finding Packages files ...\\n\\n\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:691
+#: install-files/bin/wasta-offline:681
 #, sh-format
 msgid "Processing wasta-offline ${MIRROR_BASE} repository:"
 msgstr ""
 
-#: install-files/bin/wasta-offline:712
+#: install-files/bin/wasta-offline:702
 msgid "Adding following line to sources.list:"
 msgstr ""
 
-#: install-files/bin/wasta-offline:715
+#: install-files/bin/wasta-offline:705
 #, sh-format
 msgid ""
 "#Adding wasta [Offline] ${MIRROR_BASE} repositories...\\n\\nRepository:  "
 "$REPO\\nSeries and Section:  $SERIES $SECTION\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:729
+#: install-files/bin/wasta-offline:719
 #, sh-format
 msgid "Adding wasta [Offline] ${MIRROR_BASE} repositories...\\n\\n\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:760
+#: install-files/bin/wasta-offline:750
 #, sh-format
 msgid "#Updating software lists...\\n\\nElapsed Time: $COUNT seconds\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:766
+#: install-files/bin/wasta-offline:756
 #, sh-format
 msgid "Info: apt-get update took approximately $COUNT seconds."
 msgstr ""
 
-#: install-files/bin/wasta-offline:768
+#: install-files/bin/wasta-offline:758
 msgid "wasta [Offline]: Updating Software Lists"
 msgstr ""
 
-#: install-files/bin/wasta-offline:769
+#: install-files/bin/wasta-offline:759
 msgid "Updating software lists...\\n\\n\\n\\n\\n"
 msgstr ""
 
-#: install-files/bin/wasta-offline:789
+#: install-files/bin/wasta-offline:779
 msgid "wasta [Offline]: Ready"
 msgstr ""
 
-#: install-files/bin/wasta-offline:789
+#: install-files/bin/wasta-offline:779
 msgid "Finished"
 msgstr ""
 
-#: install-files/bin/wasta-offline:791
+#: install-files/bin/wasta-offline:781
 msgid ""
-"<b>wasta [Offline] is ready.</b>\n"
+"<big>wasta [Offline] is ready</big>\n"
 "\n"
 "You may now install or update software using any of the following:\n"
 "- <i>Update Manager</i>\n"
