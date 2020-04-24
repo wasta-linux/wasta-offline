@@ -1,6 +1,8 @@
-install-files/applications         usr/share
-install-files/bin                  usr
-install-files/icons                usr/share
-install-files/wasta-offline.rules  lib/udev/rules.d
-install-files/org.wasta.apps.wasta-offline.policy      usr/share/polkit-1/actions
-install-files/org.wasta.apps.wasta-snap-manager-root.policy usr/share/polkit-1/actions
+install-files/bin                   usr
+install-files/applications          usr/share
+install-files/icons                 usr/share
+install-files/locale                usr/share
+install-files/actions               usr/share/polkit-1
+install-files/wasta-offline/po      usr/share/wasta-offline
+install-files/wasta-snap-manager/po usr/share/wasta-snap-manager
+install-files/wasta-offline.rules   lib/udev/rules.d

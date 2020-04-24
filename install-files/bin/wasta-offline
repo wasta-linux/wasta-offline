@@ -86,6 +86,12 @@ LOG_DATE=$(date +%F-%H-%M)
 HOST=$(uname -n)
 BASE=$(realpath $(dirname $0))
 
+# Variables and script needed for localization.
+export TEXTDOMAINDIR=/usr/share/locale
+export TEXTDOMAINDIR=~/.local/share/locale # for user test installation
+export TEXTDOMAIN=wasta-offline
+. gettext.sh
+
 # ------------------------------------------------------------------------------
 # Function: wait_for_locked_apt
 #
@@ -99,11 +105,11 @@ wait_for_locked_apt () {
     sleep 1
     COUNT=1
     while [ "$(ps --no-headers -p $WATCHED_PID)" ]; do
-      echo "#Another program is accessing the software lists...\n\nIs mintupdate or synaptic or apt cron job running?\n\nWaiting for it to finish...Elapsed Time: $COUNT seconds\n\n"
+      echo "$(eval_gettext "#Another program is accessing the software lists...\n\nIs mintupdate or synaptic or apt cron job running?\n\nWaiting for it to finish...Elapsed Time: \$COUNT seconds\n\n")"
       sleep 1
       COUNT=$((COUNT+1))
     done | zenity --progress \
-            --title="wasta [Offline]: wait for apt list lock to finish" \
+            --title="$(gettext "wasta [Offline]: wait for apt list lock to finish")" \
             --pulsate --auto-close --width=500 --height=100 \
             --no-cancel \
             --window-icon=info 2>/dev/null
@@ -120,7 +126,7 @@ scriptExit () {
     LOG=$(mktemp --tmpdir wasta-offline.XXX)
     WO_LOC=$LOG
     echo "$MSG" | tee -a "$LOG"
-    echo "early exit: logging to $LOG " | tee -a "$LOG"
+    echo "early exit: logging to $LOG" | tee -a "$LOG"
   fi
 
   # restore apt lists if saved item found
@@ -134,6 +140,7 @@ scriptExit () {
 
   echo "
 Hint: although theoretically unsafe, avoid the admin prompts with
+
 /etc/polkit-1/localauthority/50-local.d/org.wasta.apps.wasta-offline.pkla
 ------------------------------------------------------------
 [Override policy: allow non-admins to run wasta-offline]
@@ -144,11 +151,11 @@ Hint: although theoretically unsafe, avoid the admin prompts with
 " | tee -a "$LOG"
 
   echo "-----------------------------------------------------------" | tee -a "$LOG"
-  echo $(date +%T) $HOST "wasta-offline complete" | tee -a "$LOG"
+  echo $(date +%T) $HOST "wasta-offline complete"                    | tee -a "$LOG"
   echo "===========================================================" | tee -a "$LOG"
 
 if [ $PKEXEC_ERR -gt 0 ]; then
-  zenity --text-info --title="wasta [Offline] Error: Log" --width=650 \
+  zenity --text-info --title="$(gettext "wasta [Offline] Error: Log")" --width=650 \
     --height=500 --no-wrap --filename="$LOG" --font="Ubuntu Mono" \
     --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
     2>/dev/null
@@ -176,15 +183,15 @@ update_snaps() {
     #   least be some mention of it in the wasta-offline log.
     echo | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
-    echo "*** Starting wasta-snap-manager to update snaps.       " | tee -a "$LOG"
+    echo "*** Starting wasta-snap-manager to update snaps."        | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
-    echo | tee -a "$LOG"
-    echo $(date +%T) $HOST "wasta-snap-manager started." | tee -a "$LOG"
+    echo                                                           | tee -a "$LOG"
+    echo $(date +%T) $HOST "wasta-snap-manager started."           | tee -a "$LOG"
     echo -e "Its log file can be found at:\n$WO_LOC/log/wasta-snap-manager" | tee -a "$LOG"
-    echo | tee -a "$LOG"
+    echo                                                           | tee -a "$LOG"
     "$BASE"/wasta-snap-manager $NETMODE -s "$WO_LOC"
     echo "-------------------------------------------------------" | tee -a "$LOG"
-    echo "*** Snaps updated. Continuing with wasta-offline.      " | tee -a "$LOG"
+    echo "*** Snaps updated. Continuing with wasta-offline."       | tee -a "$LOG"
     echo "-------------------------------------------------------" | tee -a "$LOG"
 }
 
@@ -246,17 +253,17 @@ fi
 if [[ -z "$WO_LOC" ]]
 then
     zenity --question --no-wrap --height=200 --width=500 \
-        --title="wasta [Offline]" \
+        --title="$(gettext "wasta [Offline]")" \
         --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-        --text="<b>Use wasta [Offline] for local software
-updates or installs on this computer?</b>
+        --text="<b>$(gettext "Use wasta [Offline] for local software
+updates or installs on this computer?")</b>
 
-<i>You will be prompted to locate an existing
-'wasta-offline' folder.</i>\n
+<i>$(gettext "You will be prompted to locate an existing
+'wasta-offline' folder.")</i>\n
 
-<small><i><b>NOTE:</b> If you want to add a computer's local software
+<small><i><b>$(gettext "NOTE:")</b> $(gettext "If you want to add a computer's local software
 cache to a 'wasta-offline' folder, instead use
-'wasta-offline-setup'.</i></small>" 2>/dev/null
+'wasta-offline-setup'.")</i></small>" 2>/dev/null
     if [ "$?" -ne 0 ]
     then
         # User didn't say yes: exit
@@ -303,7 +310,7 @@ start folder: $START_FOLDER"
     FOLDER_SEL=$(zenity --file-selection \
         --directory --filename="$START_FOLDER" \
         --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-        --title="Select a 'wasta-offline' Folder" 2>/dev/null)
+        --title="$(gettext "Select a 'wasta-offline' Folder")" 2>/dev/null)
     if [[ "$FOLDER_SEL" == *"wasta-offline" ]]
     then
         # valid wasta-offline folder
@@ -313,12 +320,15 @@ start folder: $START_FOLDER"
 
 wasta-offline location: $WO_LOC"
     else
+        if [[ -z $FOLDER_SEL ]]; then
+            FOLDER_SEL="$(gettext "(none)")"
+        fi
         zenity --error --no-wrap --height=200 \
-          --title="wasta [Offline]: Exiting" \
+          --title="$(gettext "wasta [Offline]: Exiting")" \
           --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-          --text="<b>Selected Folder:</b> $FOLDER_SEL\n
-This folder is not a <b>'wasta-offline'</b> folder.\n
-wasta [Offline] will now exit.\n\n" 2>/dev/null
+          --text="<b>$(gettext "Selected Folder:")</b> $FOLDER_SEL\n
+$(gettext "This folder is not a <b>'wasta-offline'</b> folder.\n
+wasta [Offline] will now exit.")\n\n" 2>/dev/null
         scriptExit
     fi
 fi
@@ -327,10 +337,10 @@ fi
 if [[ -z "$WO_LOC" ]]
 then
     zenity --error --no-wrap --height=200 \
-        --title="wasta [Offline]: Exiting" \
+        --title="$(gettext "wasta [Offline]: Exiting")" \
         --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-        --text "No <b>'wasta-offline'<b> folder has been set.\n
-wasta [Offline] will now exit.\n\n" 2>/dev/null
+        --text "$(gettext "No <b>'wasta-offline'<b> folder has been set.\n
+wasta [Offline] will now exit.")\n\n" 2>/dev/null
     scriptExit
 fi
 
@@ -355,45 +365,51 @@ NET_CHECK=$(ping -c1 "www.google.com" 2> /dev/null)
 if [ $? == 0 ]
 then
     #network found, give 2 list choices
-    LIST=("TRUE"  "OFFLINE"  "OFFLINE ONLY:
-        Only software from the wasta-offline
-        folder may be updated or installed.
+    LIST=("TRUE"  "OFFLINE"  "
+$(gettext "OFFLINE ONLY:")
+$(gettext "       Only software from the wasta-offline
+       folder may be updated or installed.
 
 *** NO INTERNET CONNECTION WILL BE USED ***
-"  "FALSE"  "HYBRID"  "OFFLINE AND INTERNET:
-        Selected software updates or installs that
-        are not found in the wasta-offline folder
-        will be downloaded from the internet.
 
-*** INTERNET DOWNLOADS MAY BE SLOW or EXPENSIVE ***")
+")"  "FALSE"  "HYBRID"  "
+$(gettext "OFFLINE AND INTERNET:")
+$(gettext "       Selected software updates or installs that
+       are not found in the wasta-offline folder
+       will be downloaded from the internet.
+
+*** INTERNET DOWNLOADS MAY BE SLOW or EXPENSIVE ***")")
 else
     #network not found, only 1 choice
-    LIST=("TRUE"  "OFFLINE"  "OFFLINE ONLY:
-        Only software from the wasta-offline
-        folder may be updated or installed.")
+    LIST=("TRUE"  "OFFLINE"  "
+$(gettext "OFFLINE ONLY:")
+$(gettext "       Only software from the wasta-offline
+       folder may be updated or installed.")
+")
 fi
 
 MODE=""
-MODE=$(zenity --list --title="wasta [Offline]" --width=500 --height=550 \
+MODE=$(zenity --list --title="$(gettext "wasta [Offline]")" --width=500 --height=550 \
     --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-    --text="<b>wasta [Offline]</b> is used for local software
+    --text="$(gettext "<b>wasta [Offline]</b> is used for local software
 updates or installs from a <i>'wasta-offline'</i>  folder.
 
-<b>wasta-offline folder:</b> $WO_LOC
+<b>wasta-offline folder:</b>") $WO_LOC
 
-     <small><i><b>NOTE:</b> Be sure to close any other open software
-     management programs such as 'Update Manager' or
-     'Synaptic Package Manager' before continuing.</i></small>
+    <small><i><b>$(gettext "NOTE:")</b> $(gettext "Be sure to close any other open software
+    management programs such as 'Update Manager' or
+    'Synaptic Package Manager' before continuing.")</i></small>
 
-<b>SELECT the wasta [Offline] software mode:</b>" --radiolist \
-    --column "               " --column "Value" --column "Software Mode" \
-    --hide-column=2 "${LIST[@]}" 2>/dev/null)
+<b>$(gettext "SELECT the wasta [Offline] software mode:")</b>" --radiolist \
+    --column "     " --column "$(gettext "Value")" --column "$(gettext "Software Mode")" \
+    --hide-column=2 "${LIST[@]}" 2>/dev/null
+    )
 
 case "$MODE" in
 
 "OFFLINE")
     echo | tee -a "$LOG"
-    echo "OFFLINE Mode selected" | tee -a "$LOG"
+    echo "$(gettext "OFFLINE Mode selected")" | tee -a "$LOG"
     # REPLACE sources.list, disable sources.list.d folder
     wait_for_locked_apt
     pkexec wasta-offline-root offlineApt "$WO_LOC" "$LOG_DATE"
@@ -405,7 +421,7 @@ case "$MODE" in
 
 "HYBRID")
     echo | tee -a "$LOG"
-    echo "OFFLINE AND INTERNET Mode selected" | tee -a "$LOG"
+    echo "$(gettext "OFFLINE AND INTERNET Mode selected")" | tee -a "$LOG"
 ;;
 
 *)
@@ -534,22 +550,22 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
             COUNT=2
             while [ "$(ps --no-headers -p $WATCHED_PID)" ]
             do
-                echo "#Generating software list for wasta [Offline]...\n\nElapsed Time: $COUNT seconds\n\n\n"
+                echo "$(eval_gettext "#Generating software list for wasta [Offline]...\n\nElapsed Time: \$COUNT seconds\n\n\n")"
                 sleep 1
                 COUNT=$((COUNT+1))
             done
 
             echo | tee -a "$LOG"
-            echo "Info: dpkg-scanpackages took approximately $COUNT sec." |tee -a "$LOG"
+            echo "$(eval_gettext "Info: dpkg-scanpackages took approximately \$COUNT sec.")" |tee -a "$LOG"
 
             #flush unfinished (buffered) writes to the USB before continuing.
             sync ; sync
 
             ) | zenity --progress \
-                --title="wasta [Offline]: Generating Software Package List" \
+                --title="$(gettext "wasta [Offline]: Generating Software Package List")" \
                 --pulsate --auto-close --width=500 --height=200 \
                 --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-                --text="Generating software list for wasta [Offline]...\n\n\n\n" \
+                --text="$(gettext "Generating software list for wasta [Offline]...\n\n\n\n")" \
                 2>/dev/null
 
             echo | tee -a "$LOG"
@@ -566,9 +582,9 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
                     1> "$REPO_SERIES/$ARCH_FOLDER/Packages.gz" 2>> "$LOG"
             else
                 # filesize is 0
-                echo "ERROR:  Probably a corrupt .deb file.  " | tee -a "$LOG"
-                echo "check dpkg-scanpackages log output.    " | tee -a "$LOG"
-                echo "Deleting packages.0:                   " | tee -a "$LOG"
+                echo "ERROR:  Probably a corrupt .deb file." | tee -a "$LOG"
+                echo "check dpkg-scanpackages log output." | tee -a "$LOG"
+                echo "Deleting packages.0:" | tee -a "$LOG"
                 rm "$REPO_SERIES/$ARCH_FOLDER/Packages.0" 2>> "$LOG"
                 PKEXEC_ERR=1
                 scriptExit
@@ -601,13 +617,13 @@ echo "--------------------------------------------------------" | tee -a "$LOG"
         echo "No $WO_LOC/local-cache/$REPO_SERIES/$ARCH_FOLDER/Packages file found.
 *wasta [Offline] WILL RUN WITHOUT THE OFFLINE LOCAL-CACHE*\n\n" | tee -a "$LOG"
         zenity --error --no-wrap --height=200 \
-          --title="wasta [Offline] PACKAGES error" \
+          --title="$(gettext "wasta [Offline] PACKAGES error")" \
           --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-          --text="<b>Local-cache is DISABLED due to an error</b>\n
-Check the logs ($LOG)
-for Package errors.
+          --text="<b>$(gettext "Local-cache is DISABLED due to an error")</b>\n
+$(eval_gettext "Check the logs (\$LOG)
+for Package errors.")
 
-Internet and mirror repositories will still work, so not aborting." 2>/dev/null
+$(gettext "Internet and mirror repositories will still work, so not aborting.")" 2>/dev/null
     fi
 else
     echo | tee -a "$LOG"
@@ -645,7 +661,7 @@ if [ "${MIRROR_BASE}" ]; then
     (
     # convert Packages.gz to Packages first (for debmirror)  -k=keep orig
 
-    echo "#Creating Packages files from Packages.gz ...\n\n\n\n\n"
+    echo "$(gettext "#Creating Packages files from Packages.gz ...\n\n\n\n\n")"
 
     # find, but first "prune" "pool folders" (containing the actual binaries)
     #   for performance (gains approx 100 fold improvement)
@@ -659,7 +675,7 @@ if [ "${MIRROR_BASE}" ]; then
         -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$MINT_SERIES/*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; \
       | tee -a "$LOG"
 
-    echo "#Finding Packages files ...\n\n\n\n\n"
+    echo "$(gettext "#Finding Packages files ...\n\n\n\n\n")"
     find "$WO_LOC/${MIRROR_BASE}/" \
         -name "pool"  -type d -prune -o \
         -name ".temp" -type d -prune -o \
@@ -672,7 +688,7 @@ if [ "${MIRROR_BASE}" ]; then
     while read -r LINE
     do
         echo         | tee -a "$LOG"
-        echo "$(date +%T) Processing wasta-offline ${MIRROR_BASE} repository:" \
+        echo "$(date +%T) $(eval_gettext "Processing wasta-offline \${MIRROR_BASE} repository:")" \
                      | tee -a "$LOG"
         echo "$LINE" | tee -a "$LOG"
 
@@ -693,10 +709,10 @@ if [ "${MIRROR_BASE}" ]; then
         # Resulting line for sources.list
         APT_LINE="deb file:\"$REPO\" $SERIES $SECTION"
 
-        echo "Adding following line to sources.list:"    | tee -a "$LOG"
+        echo "$(gettext "Adding following line to sources.list:")"    | tee -a "$LOG"
         echo "$APT_LINE"                                 | tee -a "$LOG"
 
-        echo "#Adding wasta [Offline] ${MIRROR_BASE} repositories...\n\nRepository:  $REPO\nSeries and Section:  $SERIES $SECTION\n\n"
+        echo "$(eval_gettext "#Adding wasta [Offline] \${MIRROR_BASE} repositories...\n\nRepository:  \$REPO\nSeries and Section:  \$SERIES \$SECTION\n\n")"
         #let user see message
         sleep 1
         # Insert at BEGINNING of file
@@ -709,8 +725,8 @@ if [ "${MIRROR_BASE}" ]; then
     done < "$TMPDIR/${MIRROR_BASE}.list"
 
     rm -r $TMPDIR
-    ) | zenity --progress --title="wasta [Offline]" \
-        --text="Adding wasta [Offline] ${MIRROR_BASE} repositories...\n\n\n\n\n" \
+    ) | zenity --progress --title="$(gettext "wasta [Offline]")" \
+        --text="$(eval_gettext "Adding wasta [Offline] \${MIRROR_BASE} repositories...\n\n\n\n\n")" \
         --pulsate --auto-close --no-cancel --width=500 --height=200 \
         --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         2>/dev/null
@@ -727,7 +743,7 @@ fi
 
 # perform apt-get update
 echo | tee -a "$LOG"
-echo "$(date +%T) Performing apt-get update to sync package listings..."| tee -a "$LOG"
+echo "$(date +%T) Performing apt-get update to sync package listings..." | tee -a "$LOG"
 echo | tee -a "$LOG"
 
 wait_for_locked_apt
@@ -741,16 +757,16 @@ COUNT=2
 
 while [ "$(ps --no-headers -p $WATCHED_PID)" ]
 do
-    echo "#Updating software lists...\n\nElapsed Time: $COUNT seconds\n\n\n"
+    echo "$(eval_gettext "#Updating software lists...\n\nElapsed Time: \$COUNT seconds\n\n\n")"
     sleep 1
     COUNT=$((COUNT+1))
 done
 
 echo | tee -a "$LOG"
-echo "Info: apt-get update took approximately  $COUNT seconds." | tee -a "$LOG"
+echo "$(eval_gettext "Info: apt-get update took approximately \$COUNT seconds.")" | tee -a "$LOG"
 
-) | zenity --progress --title="wasta [Offline]: Updating Software Lists" \
-        --text="Updating software lists...\n\n\n\n\n" \
+) | zenity --progress --title="$(gettext "wasta [Offline]: Updating Software Lists")" \
+        --text="$(gettext "Updating software lists...\n\n\n\n\n")" \
         --pulsate --auto-close --width=500 --height=200 \
         --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
         2>/dev/null
@@ -768,20 +784,23 @@ fi
 # Processing Finished: prompt user to perform updates / installs
 # ------------------------------------------------------------------------------
 
+# TODO: shorten window text?
 zenity --info --no-wrap --height=200 --width=500 \
-    --title="wasta [Offline]: Ready" --ok-label="Finished" \
+    --title="$(gettext "wasta [Offline]: Ready")" --ok-label="$(gettext "Finished")" \
     --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-    --text="<b>wasta [Offline] is ready to be used for local
-software updates or installs on this computer</b>\n
+    --text="$(gettext "<b>wasta [Offline] is ready.</b>
+
+You may now install or update software using any of the following:
+- <i>Update Manager</i>
+- <i>Synaptic Package Manager</i>
+- terminal commands such as <i>apt</i> and <i>apt-get</i>
 
 <b>******************************************************</b>
-<b><i>Please leave this window open</i></b> and use other programs
-such as '<i>Update Manager</i>' or '<i>Synaptic Package Manager</i>'
-to complete any software updates or installs.
-<b>******************************************************</b>\n
+<b><i>Please leave this window open</i></b> until all software
+updates or installs are complete, then click <b>Finished</b>.
+<b>******************************************************</b>
 
-<b>AFTER</b> all software updates and installs are completed,
-click <b>Finished</b> to exit wasta [Offline]." 2>/dev/null
+")" 2>/dev/null
 
 # ------------------------------------------------------------------------------
 # Finished

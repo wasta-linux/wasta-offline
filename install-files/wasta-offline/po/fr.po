@@ -1,0 +1,314 @@
+# WASTA-OFFLINE TRANSLATION STRINGS
+# This file is distributed under the same license as the wasta-offline package.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2020-04-22 11:00+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:108
+#, sh-format
+msgid ""
+"#Another program is accessing the software lists...\\n\\nIs mintupdate or "
+"synaptic or apt cron job running?\\n\\nWaiting for it to finish...Elapsed "
+"Time: $COUNT seconds\\n\\n"
+msgstr ""
+"#Un autre logiciel accède à la liste de sources...\\n\\nEst-ce que"
+"mintupdate ou synaptic ou cron job d'apt est en marche ?\\n\\nAttente de"
+"la fin du processus...Temps écoulé : $COUNT secondes\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:112
+msgid "wasta [Offline]: wait for apt list lock to finish"
+msgstr "wasta [Hors-ligne] : Attente de la fin de processus d'apt"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:158
+msgid "wasta [Offline] Error: Log"
+msgstr "wasta [Hors-Linge] Erreur : Journal"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:256
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:389
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:725
+msgid "wasta [Offline]"
+msgstr "wasta [Hors-ligne]"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:258
+msgid ""
+"Use wasta [Offline] for local software\n"
+"updates or installs on this computer?"
+msgstr ""
+"Utiliser wasta [Hors-ligne] pour les\n"
+"mises à jour locales de logiciels ou les\n"
+"installations sur cet ordinateur ?"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:261
+msgid ""
+"You will be prompted to locate an existing\n"
+"'wasta-offline' folder."
+msgstr ""
+"Vous serez invité à localiser un dossier\n"
+"'wasta-offline' existant."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:264
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:396
+msgid "NOTE:"
+msgstr "NB :"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:264
+msgid ""
+"If you want to add a computer's local software\n"
+"cache to a 'wasta-offline' folder, instead use\n"
+"'wasta-offline-setup'."
+msgstr ""
+"Si vous souhaitez ajouter le cache logiciel local\n"
+"d'un ordinateur à un dossier 'wasta-offline',\n"
+"utilisez plutôt 'wasta-offline-setup'."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:313
+msgid "Select a 'wasta-offline' Folder"
+msgstr "Sélectionnez un dossier 'wasta-offline'."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:324
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:337
+msgid "wasta [Offline]: Exiting"
+msgstr "wasta [Hors-ligne] : Sortie"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:326
+msgid "Selected Folder:"
+msgstr "Dossier sélectionné :"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:327
+msgid ""
+"This folder is not a <b>'wasta-offline'</b> folder.\\n\n"
+"wasta [Offline] will now exit."
+msgstr ""
+"Ce dossier n'est pas un dossier <b>'wasta-offline'</b>.\\n\n"
+"wasta [Hors-ligne] va maintenant sortir."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:339
+msgid ""
+"No <b>'wasta-offline'<b> folder has been set.\\n\n"
+"wasta [Offline] will now exit."
+msgstr ""
+"Aucun dossier <b>'wasta-offline'<b> n'a été défini.\\n\n"
+"wasta [Hors-ligne] va maintenant sortir."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:366
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:382
+msgid "OFFLINE ONLY:"
+msgstr "UNIQUEMENT HORS-LIGNE :"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:367
+msgid ""
+"       Only software from the wasta-offline\n"
+"       folder may be updated or installed.\n"
+"\n"
+"*** NO INTERNET CONNECTION WILL BE USED ***\n"
+"\n"
+msgstr ""
+"       Seulement les logiciels de la wasta-offline\n"
+"       Le dossier peut être mis à jour ou installé.\n"
+"\n"
+"*** AUCUNE CONNEXION INTERNET NE SERA UTILISÉE ***\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:373
+msgid "OFFLINE AND INTERNET:"
+msgstr "HORS-LIGNE ET INTERNET"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:374
+msgid ""
+"       Selected software updates or installs that\n"
+"       are not found in the wasta-offline folder\n"
+"       will be downloaded from the internet.\n"
+"\n"
+"*** INTERNET DOWNLOADS MAY BE SLOW or EXPENSIVE ***"
+msgstr ""
+"       Mise à jour ou installation de certains\n"
+"       logiciels qui ne se trouvent pas dans le\n"
+"       dossier wasta-offline sera téléchargé sur Internet.\n"
+"\n"
+"*** L'UTILISATION D'INTERNET PEUT ETRE LENTE OU COUTEUSE ***"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:383
+msgid ""
+"       Only software from the wasta-offline\n"
+"       folder may be updated or installed."
+msgstr ""
+"       Seuls les logiciels du dossier wasta-offline\n"
+"       peuvent être mis à jour ou installés."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:391
+msgid ""
+"<b>wasta [Offline]</b> is used for local software\n"
+"updates or installs from a <i>'wasta-offline'</i>  folder.\n"
+"\n"
+"<b>wasta-offline folder:</b>"
+msgstr ""
+"<b>wasta [Hors-ligne]</b> est utilisé pour les mises\n"
+"à jour locales de logiciels ou les installations à partir\n"
+"d'un dossier <i>'wasta-offline'</i>.\n"
+"\n"
+"<b>dossier de wasta-offline :</b>"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:396
+msgid ""
+"Be sure to close any other open software\n"
+"    management programs such as 'Update Manager' or\n"
+"    'Synaptic Package Manager' before continuing."
+msgstr ""
+"Veillez à fermer tout autre logiciel de\n"
+"    gestion de logicels tels que 'Gestionnaire de\n"
+"    Mises à jour' ou 'Synaptic Software Package\n"
+"    Manager' avant de continuer."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:400
+msgid "SELECT the wasta [Offline] software mode:"
+msgstr "SÉLECTIONNEZ le mode logiciel wasta [Hors-ligne] : "
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:401
+msgid "Value"
+msgstr "Valeur"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:401
+msgid "Software Mode"
+msgstr "Mode d'sources"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:409
+msgid "OFFLINE Mode selected"
+msgstr "Mode HORS-LIGNE sélectionné"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:421
+msgid "OFFLINE AND INTERNET Mode selected"
+msgstr "Mode HORS-LIGNE ET INTERNET sélectionné"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:550
+#, sh-format
+msgid ""
+"#Generating software list for wasta [Offline]...\\n\\nElapsed Time: $COUNT "
+"seconds\\n\\n\\n"
+msgstr "#Génération de liste de logiciels pour wasta [Hors-ligne]...\\n\\n"
+"Temps écoulé : $COUNT secondes\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:556
+#, sh-format
+msgid "Info: dpkg-scanpackages took approximately $COUNT sec."
+msgstr "Information : dpkg-scanpackages a duré environ $COUNT secondes."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:562
+msgid "wasta [Offline]: Generating Software Package List"
+msgstr "wasta [Hors-ligne] : Génération de liste de paquets de logiciels"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:565
+msgid "Generating software list for wasta [Offline]...\\n\\n\\n\\n"
+msgstr "Génération de liste de logiciels pour wasta [Hors-ligne]...\\n\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:617
+msgid "wasta [Offline] PACKAGES error"
+msgstr "wasta [Hors-ligne] erreur de PAQUETS"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:619
+msgid "Local-cache is DISABLED due to an error"
+msgstr "DESACTIVATION de local-cache due à une erreure"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:620
+#, sh-format
+msgid ""
+"Check the logs ($LOG)\n"
+"for Package errors."
+msgstr ""
+"Vérifiez le fichier journal ($LOG)\n"
+"pour des erreurs de Package."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:623
+msgid "Internet and mirror repositories will still work, so not aborting."
+msgstr "Dépots d'Internet et de miroir fonctionneront toujours, donc pas d'arrêt."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:661
+msgid "#Creating Packages files from Packages.gz ...\\n\\n\\n\\n\\n"
+msgstr "#Création des fichiers Packages depuis Packages.gz ...\\n\\n\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:675
+msgid "#Finding Packages files ...\\n\\n\\n\\n\\n"
+msgstr "#Recherche des fichiers Packages ...\\n\\n\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:688
+#, sh-format
+msgid "Processing wasta-offline ${MIRROR_BASE} repository:"
+msgstr "Traitement du dépot de wasta-offline ${MIRROR_BASE} :"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:709
+msgid "Adding following line to sources.list:"
+msgstr "Ajoût de la ligne suivante à sources.list :"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:712
+#, sh-format
+msgid ""
+"#Adding wasta [Offline] ${MIRROR_BASE} repositories...\\n\\nRepository:  "
+"$REPO\\nSeries and Section:  $SERIES $SECTION\\n\\n"
+msgstr ""
+"#Ajoût des dépots de wasta [Hors-ligne] ${MIRROR_BASE}...\\n\\nDépot :"
+"$REPO\\nSérie et Section :  $SERIES $SECTION\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:726
+#, sh-format
+msgid "Adding wasta [Offline] ${MIRROR_BASE} repositories...\\n\\n\\n\\n\\n"
+msgstr "Ajoût des dépots de wasta [Hors-ligne] ${MIRROR_BASE}...\\n\\n\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:757
+#, sh-format
+msgid "#Updating software lists...\\n\\nElapsed Time: $COUNT seconds\\n\\n\\n"
+msgstr "#Mises à jour de listes de logiciels...\\n\\nTemps écoulé : $COUNT secondes\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:763
+#, sh-format
+msgid "Info: apt-get update took approximately $COUNT seconds."
+msgstr "Information : apt-get update a duré environ $COUNT secondes."
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:765
+msgid "wasta [Offline]: Updating Software Lists"
+msgstr "wasta [Hors-ligne] : Mise à jour de listes de logiciels"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:766
+msgid "Updating software lists...\\n\\n\\n\\n\\n"
+msgstr "Mise à jour de listes de logiciels...\\n\\n\\n\\n\\n"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:786
+msgid "wasta [Offline]: Ready"
+msgstr "wasta [Hors-ligne] : Prêt"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:786
+msgid "Finished"
+msgstr "Terminé"
+
+#: /home/nate/dev/w-o/wasta-offline/install-files/bin/wasta-offline:788
+msgid ""
+"<b>wasta [Offline] is ready.</b>\n"
+"\n"
+"You may now install or update software using any of the following:\n"
+"- <i>Update Manager</i>\n"
+"- <i>Synaptic Package Manager</i>\n"
+"- terminal commands such as <i>apt</i> and <i>apt-get</i>\n"
+"\n"
+"<b>******************************************************</b>\n"
+"<b><i>Please leave this window open</i></b> until all software\n"
+"updates or installs are complete, then click <b>Finished</b>.\n"
+"<b>******************************************************</b>\n"
+"\n"
+msgstr ""
+"<b>wasta [Hors-ligne] est prêt.</b>\n"
+"\n"
+"Vous pouvez désormais installer ou mettre à jour des logiciels par :\n"
+"- <i>Gestionnaire de mises à jour</i>\n"
+"- <i>Synaptic Software Package Manager</i>\n"
+"- par l'invite de commandes : <i>apt</i> et <i>apt-get</i>\n"
+"\n"
+"<b>******************************************************</b>\n"
+"<b><i>Veuillez laisser cette fenêtre ouverte</i></b> jusqu'à\n"
+"la fin des installations ou des mises à jour, puis cliquer\n"
+"sur <b>Terminé</b> pour quitter wasta [Hors-ligne].\n"
+"<b>******************************************************</b>\n"
+"\n"
