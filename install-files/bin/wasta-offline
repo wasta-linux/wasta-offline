@@ -364,47 +364,35 @@ fi
 
 
 NET_CHECK=$(ping -c1 "www.google.com" 2> /dev/null)
-if [ $? == 0 ]
-then
+if [[ $? == 0 ]]; then
     #network found, give 2 list choices
     LIST=("TRUE"  "OFFLINE"  "
-$(gettext "OFFLINE ONLY:")
-$(gettext "       Only software from the wasta-offline
-       folder may be updated or installed.
-
-*** NO INTERNET CONNECTION WILL BE USED ***
-
-")"  "FALSE"  "HYBRID"  "
-$(gettext "OFFLINE AND INTERNET:")
-$(gettext "       Selected software updates or installs that
-       are not found in the wasta-offline folder
-       will be downloaded from the internet.
-
+$(gettext "ONLY 'wasta-offline' folder
+*** NO INTERNET CONNECTION WILL BE USED ***")\
+"  "FALSE"  "HYBRID"  "
+$(gettext "BOTH 'wasta-offline' folder and internet
 *** INTERNET DOWNLOADS MAY BE SLOW or EXPENSIVE ***")")
 else
     #network not found, only 1 choice
     LIST=("TRUE"  "OFFLINE"  "
-$(gettext "OFFLINE ONLY:")
-$(gettext "       Only software from the wasta-offline
-       folder may be updated or installed.")
+$(gettext "ONLY 'wasta-offline' folder")
 ")
 fi
 
 MODE=""
-MODE=$(zenity --list --title="$(gettext "wasta [Offline]")" --width=500 --height=550 \
+MODE=$(zenity --list --title="$(gettext "wasta [Offline]")" --width=500 --height=350 \
     --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-    --text="$(gettext "<b>wasta [Offline]</b> is used for local software
-updates or installs from a <i>'wasta-offline'</i>  folder.
-
-<b>wasta-offline folder:</b>") $WO_LOC
+    --text="<big>$(gettext "Install or update local software from a <i>'wasta-offline'</i> folder.")</big>
 
     <small><i><b>$(gettext "NOTE:")</b> $(gettext "Be sure to close any other open software
     management programs such as 'Update Manager' or
     'Synaptic Package Manager' before continuing.")</i></small>
 
-<b>$(gettext "SELECT the wasta [Offline] software mode:")</b>" --radiolist \
-    --column "     " --column "$(gettext "Value")" --column "$(gettext "Software Mode")" \
-    --hide-column=2 "${LIST[@]}" 2>/dev/null
+<b>$(gettext "wasta-offline folder:")</b> $WO_LOC
+
+<b>$(gettext "SELECT the wasta [Offline] software source:")</b>" --radiolist \
+    --column "        " --column "$(gettext "Value")" --column "$(gettext "Software Source")" \
+    --hide-column=2 --hide-header "${LIST[@]}" 2>/dev/null
     )
 
 case "$MODE" in
@@ -790,7 +778,7 @@ fi
 zenity --info --no-wrap --height=200 --width=500 \
     --title="$(gettext "wasta [Offline]: Ready")" --ok-label="$(gettext "Finished")" \
     --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-    --text="$(gettext "<b>wasta [Offline] is ready.</b>
+    --text="$(gettext "<big>wasta [Offline] is ready</big>
 
 You may now install or update software using any of the following:
 - <i>Update Manager</i>
