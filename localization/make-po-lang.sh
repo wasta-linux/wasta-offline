@@ -34,7 +34,7 @@ dest_path="${dest_dir}/${dest_file}"
 
 if [[ ! -e ${po_path}/${lang}.po ]]; then
     # Create initial <lang>-draft-<date>.po file.
-    xgettext --package-name="wasta-offline" -L Shell -o "${dest_path}" "${app_path}"*
+    xgettext --package-name="wasta-offline" -L Shell -o "${dest_path}" "${app_path}"
     ec=$?
     adj="new"
 else

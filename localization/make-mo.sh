@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# This script simplifies the command needed to create .mo files.
+# This script simplifies the command needed to create .mo files and
+#   put them in the right place for testing and installation.
 
 # Script arguments.
 app=$1
