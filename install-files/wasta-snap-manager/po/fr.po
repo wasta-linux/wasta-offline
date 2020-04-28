@@ -1,0 +1,180 @@
+# WASTA-OFFLINE TRANSLATION STRINGS
+# This file is distributed under the same license as the wasta-offline package.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2020-04-27 17:21+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: install-files/bin/wasta-snap-manager:85
+msgid "wasta [Snap] Manager"
+msgstr "wasta [Snap] Gestionnaire"
+
+#: install-files/bin/wasta-snap-manager:133
+msgid "Confirm the wasta-offline folder or choose another one"
+msgstr "Confirmer le dossier wasta-offline ou en choisir un autre"
+
+#: install-files/bin/wasta-snap-manager:145
+msgid "Choose the offline snaps folder"
+msgstr "Choisissez le dossier des snaps hors ligne"
+
+#: install-files/bin/wasta-snap-manager:358
+msgid "Installed snap packages."
+msgstr "Paquets snap installés."
+
+#: install-files/bin/wasta-snap-manager:359
+msgid "To uninstall snap packages, deselect them and click"
+msgstr "Pour désinstaller les paquets snap, désélectionnez-les et cliquez"
+
+#: install-files/bin/wasta-snap-manager:359
+msgid "OK"
+msgstr "OK"
+
+#: install-files/bin/wasta-snap-manager:439
+msgid "These offline snap packages are available for this computer."
+msgstr "Ces paquets de snap sont disponibles hors ligne pour cet ordinateur."
+
+#: install-files/bin/wasta-snap-manager:440
+msgid ""
+"Available updates are already selected. New packages can be installed by "
+"selecting them as well.\n"
+"If \"online updates\" has also been selected, updates will be searched from "
+"the Snap Store\n"
+"once the offline updates are complete."
+msgstr ""
+"Les mises à jour sont déjà sélectionnées. Les nouveaux paquets peuvent aussi"
+"être installés en les sélectionnant.\n"
+"Si \"mises à jour en ligne\" a également été sélectionné, les mises à jour"
+"seront recherchées à partir de la Boutique Snap\n"
+"une fois les mises à jour hors ligne terminées."
+
+#: install-files/bin/wasta-snap-manager:444
+msgid "Continue..."
+msgstr "Continuer..."
+
+#: install-files/bin/wasta-snap-manager:445
+#: install-files/bin/wasta-snap-manager:866
+msgid "Back"
+msgstr "Retour"
+
+#: install-files/bin/wasta-snap-manager:446
+msgid "Installed Revision"
+msgstr "Révision installée"
+
+#: install-files/bin/wasta-snap-manager:447
+msgid "Available Revision"
+msgstr "Révision disponible"
+
+#: install-files/bin/wasta-snap-manager:656
+msgid "Manage snap packages and snap update settings."
+msgstr "Gérer les paquets snap et ses paramètres de mises à jour."
+
+#: install-files/bin/wasta-snap-manager:656
+msgid "Add/update snaps from wasta [Offline] or local folder."
+msgstr "Ajouter/mettre à jour des snaps à partir de wasta [Offline] ou d'un dossier local."
+
+#: install-files/bin/wasta-snap-manager:657
+msgid "Update snaps from the online Snap Store."
+msgstr "Mise à jour des snaps depuis la Boutique des snaps en ligne."
+
+#: install-files/bin/wasta-snap-manager:658
+msgid ""
+"To <b>Add/Update</b> snap packages, first choose your preferred source(s):\n"
+"<i>If both are selected, the offline source will be used first to limit "
+"downloading.</i>"
+msgstr "Pour <b>Ajouter/Mettre à jour</b> des paquets snap, choisissez d'abord "
+ "les sources préférées :\n"
+"<i>Si les deux sont sélectionnées, la source hors ligne sera utilisée en "
+"premier pour limiter les téléchargements.</i>"
+
+#: install-files/bin/wasta-snap-manager:658
+msgid "Add/Update..."
+msgstr "Ajouter/Mettre à jour..."
+
+#: install-files/bin/wasta-snap-manager:659
+msgid "Quit"
+msgstr "Quitter"
+
+#: install-files/bin/wasta-snap-manager:660
+msgid "Remove..."
+msgstr "Enlever..."
+
+#: install-files/bin/wasta-snap-manager:661
+msgid "Settings..."
+msgstr "Paramètres..."
+
+#: install-files/bin/wasta-snap-manager:673
+#: install-files/bin/wasta-snap-manager:676
+msgid "Offline"
+msgstr "Hors ligne"
+
+#: install-files/bin/wasta-snap-manager:673
+msgid "Online"
+msgstr "Internet"
+
+#: install-files/bin/wasta-snap-manager:821
+msgid "Set current connection as metered"
+msgstr "Définir la connexion actuelle comme limitée"
+
+#: install-files/bin/wasta-snap-manager:774
+#: install-files/bin/wasta-snap-manager:822
+msgid "disconnected"
+msgstr "déconnectée"
+
+#: install-files/bin/wasta-snap-manager:831
+msgid "Auto-refresh on metered connections"
+msgstr "Auto-refresh sur connexions limitées"
+
+#: install-files/bin/wasta-snap-manager:840
+msgid "Auto-refresh time window"
+msgstr "Période d'auto-refresh"
+
+#: install-files/bin/wasta-snap-manager:849
+msgid "Number of snap revisions kept"
+msgstr "Nombre de révisions de snaps conservées"
+
+#: install-files/bin/wasta-snap-manager:858
+msgid "Manage snapd settings."
+msgstr "Gérer les paramètres de snapd."
+
+#: install-files/bin/wasta-snap-manager:859
+msgid ""
+"Settings corresponding to suggested values are checked.\n"
+"Uncheck the box to restore defaults."
+msgstr ""
+"Les paramètres correspondant aux valeurs suggérées sont cochés.\n"
+"Décochez la case pour restaurer les défauts."
+
+#: install-files/bin/wasta-snap-manager:863
+msgid "Setting"
+msgstr "Valeur"
+
+#: install-files/bin/wasta-snap-manager:864
+msgid "Description"
+msgstr "Description"
+
+#: install-files/bin/wasta-snap-manager:865
+msgid "Current"
+msgstr "Actuelle"
+
+#: install-files/bin/wasta-snap-manager:865
+msgid "Suggested"
+msgstr "Suggérée"
+
+#: install-files/bin/wasta-snap-manager:966
+#: install-files/bin/wasta-snap-manager:1076
+msgid "Waiting for authorization..."
+msgstr "En attente d'autorisation..."
+
+#: install-files/bin/wasta-snap-manager:993
+msgid "Updating snaps from the Snap store."
+msgstr "Mises à jour depuis la Boutique des snaps."
+
+#: install-files/bin/wasta-snap-manager:994
+msgid "\\n\\tThis might take several minutes on a slow connection.\\n\\n"
+msgstr "\\n\\tCela peut prendre plusieurs minutes sur une connexion lente.\\n\\n"

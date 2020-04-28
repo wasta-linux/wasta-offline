@@ -1,0 +1,171 @@
+# WASTA-OFFLINE TRANSLATION STRINGS
+# This file is distributed under the same license as the wasta-offline package.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2020-04-27 18:14+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: install-files/bin/wasta-snap-manager:91
+#: install-files/bin/wasta-snap-manager:655
+msgid "wasta [Snap] Manager"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:139
+msgid "Confirm the wasta-offline folder or choose another one"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:151
+msgid "Choose the offline snaps folder"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:364
+msgid "Installed snap packages."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:365
+msgid "To uninstall snap packages, deselect them and click"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:365
+msgid "OK"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:444
+msgid "These offline snap packages are available for this computer."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:445
+msgid ""
+"Available updates are already selected. New packages can be installed by "
+"selecting them as well.\n"
+"If \"online updates\" has also been selected, updates will be searched from "
+"the Snap Store\n"
+"once the offline updates are complete."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:449
+msgid "Continue..."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:450
+#: install-files/bin/wasta-snap-manager:871
+msgid "Back"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:451
+msgid "Installed Revision"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:452
+msgid "Available Revision"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:656
+msgid "Manage snap packages and snap update settings."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:658
+msgid ""
+"To <b>Add/Update</b> snap packages, first choose your preferred source(s):\n"
+"<i>If both are selected, the offline source will be used first to limit "
+"downloading.</i>"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:661
+msgid "Add/update snaps from wasta [Offline] or local folder."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:662
+msgid "Update snaps from the online Snap Store."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:663
+msgid "Add/Update..."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:664
+msgid "Quit"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:665
+msgid "Remove..."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:666
+msgid "Settings..."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:673
+#: install-files/bin/wasta-snap-manager:676
+msgid "Offline"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:673
+msgid "Online"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:779
+#: install-files/bin/wasta-snap-manager:827
+msgid "disconnected"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:826
+msgid "Set current connection as metered"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:836
+msgid "Auto-refresh on metered connections"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:845
+msgid "Auto-refresh time window"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:854
+msgid "Number of snap revisions kept"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:863
+msgid "Manage snapd settings."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:864
+msgid ""
+"Settings corresponding to suggested values are checked.\n"
+"Uncheck the box to restore defaults."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:868
+msgid "Setting"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:869
+msgid "Description"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:870
+msgid "Current"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:870
+msgid "Suggested"
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:971
+#: install-files/bin/wasta-snap-manager:1081
+msgid "Waiting for authorization..."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:998
+msgid "Updating snaps from the Snap store."
+msgstr ""
+
+#: install-files/bin/wasta-snap-manager:999
+msgid "\\n\\tThis might take several minutes on a slow connection.\\n\\n"
+msgstr ""
