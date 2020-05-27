@@ -273,7 +273,7 @@ list_available_snaps() {
         name_rev=${name_rev%.snap}
         rev=${name_rev##*_}
         name=${name_rev%_*}
-        snaps_avail["$name"]+="$rev "
+        [ "$snap" ] && snaps_avail["$name"]+="$rev "
     done <<< "${available_list[@]}"
 
     # Sort revisions listed for each snap, choose highest one.
