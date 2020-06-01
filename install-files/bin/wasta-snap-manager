@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# TODO:
+#   - Some kind of integrity check for assert files? The ack command can
+#       fail, causing the install window to hang if the assert file is malformed.
+
 # ===========================================================================
 # Purpose:
 #   - Provide for installing, updating, and removing snap packages without
@@ -35,6 +39,12 @@ installed snaps.
     snap1 snap2 ...     Space-separated list of snaps to install or update.
 
 "
+
+# Variables and script needed for localization.
+export TEXTDOMAINDIR=/usr/share/locale
+export TEXTDOMAINDIR=~/.local/share/locale # for user test installation
+export TEXTDOMAIN=wasta-snap-manager
+. gettext.sh
 
 # Empty intial value for $SNAPS_DIR.
 SNAPS_DIR=''
@@ -82,7 +92,7 @@ AS_ROOT=$(which wasta-snap-manager-root)
 SUM=$(($INET + $OFFL))
 
 # Zenity defaults
-ZTITLE="Wasta [Snap] Manager"
+ZTITLE="$(gettext "wasta [Snap] Manager")"
 ZHEIGHT=450
 ZWIDTH=650
 ZICON=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg
@@ -96,7 +106,11 @@ ZPROGDEFS=(
 )
 
 # Core snaps assumed.
-# TODO: Need to add core20 once it's released (before WL-20.04 is released)
+# TODO: Need to add core20 once it's released.
+# $ snap search core | grep canonical | grep -E '^core[0-9]*' | awk '{print $1}'
+# core
+# core18
+# core16
 CORES=( core core18 )
 
 
@@ -110,7 +124,7 @@ ask_offline_folder() {
 
     if [[ ! $snaps_dir ]] && [[ $offl -eq 1 ]]; then
         # Determine potential $START_FOLDER.
-        text="\n\n\nSearching system for wasta [Offline] folder..."
+        text="$(gettext "\n\n\nSearching system for wasta [Offline] folder...")"
         # Convoluted yet functional zenity subprocess inspired by this article:
         #   http://wiki.bash-hackers.org/zenity_--progress
         wo_list=$(
@@ -125,21 +139,20 @@ ask_offline_folder() {
         else
             while IFS= read -r d; do
                 loc_cache=$(find "$d" -maxdepth 1 -name 'local-cache' -type d 2>/dev/null)
+                # Title for upcoming file chooser dialog.
+                title="$(gettext "Confirm the wasta-offline folder or choose another one")"
                 if [[ $loc_cache =~ ^/media/.*$ ]]; then
                     # Automatically accept 'wasta-offline' folder in /media/...
                     START_FOLDER="$d"
-                    # Title for upcoming file chooser dialog.
-                    title="Confirm the wasta-offline folder or choose another one"
                     break
                 elif [[ $loc_cache ]]; then
                     # Accept other 'wasta-offlne' folder, but let one in /media/... overrule it.
                     #   In case there are more than two qualifiers, the last one found wins.
                     START_FOLDER="$d"
-                    title="Confirm the wasta-offline folder or choose another one"
                 else
                     # No "true" wasta-offline folder found.
                     START_FOLDER=/home/"$USER"/
-                    title="Choose the offline snaps folder"
+                    title="$(gettext "Choose the offline snaps folder")"
                 fi
             done <<< "${wo_list[@]}"
         fi
@@ -352,10 +365,9 @@ show_installed_snaps() {
 
     # Show zenity --checklist for user to choose updates/installs.
     text="<big><b>\
-Installed snap packages.</b></big>\n
-To uninstall snap packages, deselect them and click \"OK\"\n"
+$(gettext "Installed snap packages.")</b></big>\n
+$(gettext "To uninstall snap packages, deselect them and click") \"$(gettext "OK")\"\n"
     kept_snaps=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
-        --title="Wasta [Snap] Manager" \
         --column='' --column="Snap" --column="Revision" \
         "${installed_snaps[@]}" --separator='\n' \
         --text="$text" --cancel-label="Back" 2>/dev/null
@@ -433,14 +445,15 @@ show_offline_updates() {
     # Show zenity --checklist for user to choose updates/installs.
     if [[ $available_snaps ]]; then
         text="<big><b>\
-These offline snap packages are available for this computer.</b></big>
-Available updates are already selected. New packages can be installed by selecting them as well.
+$(gettext "These offline snap packages are available for this computer.")</b></big>
+$(gettext "Available updates are already selected. New packages can be installed by selecting them as well.
 If \"online updates\" has also been selected, updates will be searched from the Snap Store
-once the offline updates are complete."
+once the offline updates are complete.")"
         selected_snaps=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
-            --title="Wasta [Snap] Manager" \
-            --ok-label="Continue..." --cancel-label="Back" \
-            --column='' --column="Snap" --column="Installed Revision" --column="Available Revision" \
+            --ok-label="$(gettext "Continue...")" \
+            --cancel-label="$(gettext "Back")" \
+            --column='' --column="Snap" --column="$(gettext "Installed Revision")" \
+            --column="$(gettext "Available Revision")" \
             "${available_snaps[@]}" --separator='\n' \
             --text="$text" 2>/dev/null
         )
@@ -537,14 +550,20 @@ install_prerequisites() {
         # Output to progress dialog and to $LOG.
         echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $p..."
         echo -en "Installing $p from offline source... " | tee -a "$LOG"
-        pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${p}_${ra}.assert" #2>"$LOG"
+        pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${p}_${ra}.assert" 2>"$LOG"
+        ec=$?
+        if [[ $ec -ne 0 ]]; then
+            # Error during ack. Skip this snap.
+            echo -e "error during ack, skipped. " | tee -a "$LOG"
+            continue
+        fi
         #nmcli networking off
         pkexec "$AS_ROOT" unshare -n snap install "$snaps_dir/$arch/${p}_${ra}.snap" #2>"$LOG"
-        ret=$?
+        ec=$?
         #nmcli networking on
-        if [[ $ret -gt 0 ]]; then # failed to install
+        if [[ $ec -gt 0 ]]; then # failed to install
             # Some other install error.
-            echo -e "error, skipped. " | tee -a "$LOG"
+            echo -e "error during install, skipped. " | tee -a "$LOG"
             continue
         else
             echo -e "installed." | tee -a "$LOG"
@@ -596,9 +615,9 @@ install_snaps() {
         pkexec "$AS_ROOT" snap ack "$snaps_dir/$arch/${name}_${rev}.assert" #2>"$LOG"
 
         # Force networking to be offline to avoid downloading snap prereqs.
-        # TODO: Ideally I would just block networking to wasta-snap-manager somehow, rather than a complete shutoff.
-        #   - Better solution: temporarily convince snap that there is no network, but how?
         #nmcli networking off
+        # UPDATE: Attempting to block networking to snap command, rather than a
+        #   complete shutoff. Old code kept until this is confirmed to work.
 
         # Install snap. Use --classic flag if necessary.
         if [[ $confinement == 'classic' ]]; then
@@ -643,41 +662,47 @@ window_home() {
 
     if [[ $sum -eq 0 ]]; then
 
-        text="<big><b>wasta [Snap] Manager</b>
-Manage snap packages and snap update settings.</big>
+        text="<big><b>$(gettext "wasta [Snap] Manager")</b>
+$(gettext "Manage snap packages and snap update settings.")</big>
 
-To <b>Add/Update</b> snap packages, first choose your preferred source(s):
-<i>If both are selected, the offline source will be used first to limit downloading.</i>"
+$(gettext "To <b>Add/Update</b> snap packages, first choose your preferred source(s):
+<i>If both are selected, the offline source will be used first to limit downloading.</i>")"
 
-        loc_text="Add/update snaps from wasta [Offline] or local folder."
-        net_text="Update snaps from the online Snap Store."
+        loc_text="$(gettext "Add/update snaps from wasta [Offline] or local folder.")"
+        net_text="$(gettext "Update snaps from the online Snap Store.")"
+        add_text="$(gettext "Add/Update...")"
+        quit_text="$(gettext "Quit")"
+        remove_text="$(gettext "Remove...")"
+        settings_text="$(gettext "Settings...")"
 
         net_check=$(dig +short @208.67.222.222 www.google.com +timeout=1 >/dev/null 2>&1)
 
         ret=$?
         if [ $ret == 0 ]; then
             #network found, give 2 list choices
-            list=( "False" "1" "Offline" "$loc_text" "False" "2" "Online" "$net_text" )
+            list=( "False" "1" "$(gettext "Offline")" "$loc_text" "False" "2" "$(gettext "Online")" "$net_text" )
         else
             #network not found, only 1 choice
-            list=( "False" "1" "Offline" "$loc_text" )
+            list=( "False" "1" "$(gettext "Offline")" "$loc_text" )
         fi
 
         sources=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
             --column='' --column=value --column=Source --column=Description \
             --hide-column=2 "${list[@]}" \
-            --ok-label="Add/Update..." --cancel-label="Quit" \
-            --extra-button="Remove..." --extra-button="Settings..." \
+            --ok-label="$add_text" \
+            --cancel-label="$quit_text" \
+            --extra-button="$remove_text" \
+            --extra-button="$settings_text" \
             --text="$text" --height=250 2>/dev/null)
         ec=$?
     fi
 
     # Proceed to window corresponding to chosen button.
     if [[ $ec -eq 1 ]] && [[ $sources ]]; then
-        if [[ $sources == 'Remove...' ]]; then
+        if [[ $sources == $remove_text ]]; then
             # User clicked [Remove...].
             window_remove_snaps
-        elif [[ $sources == 'Settings...' ]]; then
+        elif [[ $sources == $settings_text ]]; then
             # User clicked [Settings...].
             window_settings
         fi
@@ -757,11 +782,11 @@ window_settings() {
 
     if [[ $inet_connection ]]; then
         metered_status=$(
-            nmcli -f connection.metered connection show "$inet_connection" \
+            LANG=C nmcli -f connection.metered connection show "$inet_connection" \
             | tr -s ' ' | cut -d' ' -f2
         )
     else
-        metered_status='disconnected'
+        metered_status="$(gettext "disconnected")"
     fi
 
     # Create a pipe to get pkexec output without a subshell. This is done to
@@ -808,8 +833,8 @@ window_settings() {
     settings=()
 
     # Add $c_metered details to the list if connected.
-    desc="Set current connection as metered"
-    if [[ $c_metered == 'disconnected' ]]; then
+    desc="$(gettext "Set current connection as metered")"
+    if [[ $c_metered == $(gettext "disconnected") ]]; then
         settings+=()
     elif [[ $c_metered == $c_metered_sug ]]; then
         settings+=( "True" "connection.metered" "$desc" "$c_metered" "$c_metered_sug" )
@@ -818,7 +843,7 @@ window_settings() {
     fi
 
     # Add $m_handling details.
-    desc="Auto-refresh on metered connections"
+    desc="$(gettext "Auto-refresh on metered connections")"
     if [[ $m_handling == $m_handling_sug ]]; then
         settings+=( "True" )
     else
@@ -827,7 +852,7 @@ window_settings() {
     settings+=( "refresh.metered" "$desc" "$m_handling" "$m_handling_sug" )
 
     # Add $r_timer details.
-    desc="Auto-refresh time window"
+    desc="$(gettext "Auto-refresh time window")"
     if [[ $r_timer == $r_timer_sug ]]; then
         settings+=( "True" )
     else
@@ -836,7 +861,7 @@ window_settings() {
     settings+=( "refresh.timer" "$desc" "$r_timer" "$r_timer_sug" )
 
     # Add $r_kept details.
-    desc="Number of snap revisions kept"
+    desc="$(gettext "Number of snap revisions kept")"
     if [[ $r_kept == $r_kept_sug ]]; then
         settings+=( "True" )
     else
@@ -845,14 +870,15 @@ window_settings() {
     settings+=( "refresh.retain" "$desc" "$r_kept" "$r_kept_sug" )
 
     # Show zenity checklist window.
-    text="<big><b>Manage snapd settings.</b></big>\n
-Settings corresponding to suggested values are checked.
-Uncheck the box to restore defaults."
+    text="<big><b>$(gettext "Manage snapd settings.")</b></big>\n
+$(gettext "Settings corresponding to suggested values are checked.
+Uncheck the box to restore defaults.")"
     override_defaults=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
-        --height=350 --title="Wasta [Snap] Manager" \
-        --column='' --column="Setting" --column="Description" \
-        --column="Current" --column="Suggested" \
-        "${settings[@]}" --separator='\n' --cancel-label="Back" \
+        --height=350 \
+        --column='' --column="$(gettext "Setting")" \
+        --column="$(gettext "Description")" \
+        --column="$(gettext "Current")" --column="$(gettext "Suggested")" \
+        "${settings[@]}" --separator='\n' --cancel-label="$(gettext "Back")" \
         --text="$text" 2>/dev/null
     )
     if [[ $? -eq 1 ]]; then
@@ -873,7 +899,7 @@ Uncheck the box to restore defaults."
     #   However, the user can also explicity set a connection as metered.
     echo "Set connection.metered as default [$c_metered_def]."
     if [[ $inet_connection ]]; then
-        nmcli connection modify "$inet_connection" connection.metered "$c_metered_def"
+        LANG=C nmcli connection modify "$inet_connection" connection.metered "$c_metered_def"
     fi
 
     # Whether or not snapd auto-refreshes snaps on any metered connection.
@@ -898,7 +924,7 @@ Uncheck the box to restore defaults."
                     echo "Set $s to $c_metered_sug"
                     # Set current connection to $c_metered_sug.
                     echo "Setting $s to $c_metered_sug..."
-                    nmcli connection modify "$inet_connection" connection.metered "$c_metered_sug"
+                    LANG=C nmcli connection modify "$inet_connection" connection.metered "$c_metered_sug"
                 else
                     continue
                 fi
@@ -952,12 +978,13 @@ window_add_or_update_snaps() {
         list_installed_snaps                                     # -> $snaps_installed
         list_available_snaps "$snaps_dir"                        # -> $snaps_available
         list_updatable_snaps "snaps_installed" "snaps_available" # -> $snaps_updatable
+        waiting_text="$(gettext "Waiting for authorization...")"
 
         if [[ $wasta_offline_launch ]]; then
             # Update offline snaps; don't show other available snaps.
             install_snaps "snaps_available" "snaps_updatable" "$snaps_dir" \
                 | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
-                    --text="Waiting for authorization..." 2>/dev/null
+                    --text="$waiting_text" 2>/dev/null
         else
             # Show updatable and installable snaps.
             show_offline_updates "snaps_installed" "snaps_available" "snaps_updatable" # -> $selected_snaps
@@ -971,15 +998,15 @@ window_add_or_update_snaps() {
             # Install offline snaps; show progress window.
             install_snaps "snaps_available" "selected_snaps" "$snaps_dir" \
                 | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
-                    --text="Waiting for authorization..." 2>/dev/null
+                    --text="$waiting_text" 2>/dev/null
         fi
     fi
 
     # Refresh snaps if $INET=2; show progress window.
     if [[ $install_mode -gt 1 ]]; then
         #last=$(snap change --last=refresh)
-        textA="Updating snaps from the Snap store."
-        textB="\n\tThis might take several minutes on a slow connection.\n\n"
+        textA="$(gettext "Updating snaps from the Snap store.")"
+        textB="$(gettext "\n\tThis might take several minutes on a slow connection.\n\n")"
         echo "$textA" | tee -a "$LOG"
         # TODO: Need some kind of indication of actual progress?
         # TODO: "Cancel" in the following zenity window doesn't work (subprocess)
@@ -1061,7 +1088,7 @@ window_remove_snaps() {
     # Remove snaps; show progress window.
     remove_snaps "snaps_to_remove" \
         | zenity "${ZDEFAULTS[@]}" "${ZPROGDEFS[@]}" --no-cancel \
-            --text="Waiting for authorization..." 2>/dev/null
+            --text="$(gettext "Waiting for authorization...")" 2>/dev/null
 
     # Return to Remove Snaps Window.
     window_remove_snaps
