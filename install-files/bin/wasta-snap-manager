@@ -42,7 +42,7 @@ installed snaps.
 
 # Variables and script needed for localization.
 export TEXTDOMAINDIR=/usr/share/locale
-export TEXTDOMAINDIR=~/.local/share/locale # for user test installation
+#export TEXTDOMAINDIR=~/.local/share/locale # for user test installation
 export TEXTDOMAIN=wasta-snap-manager
 . gettext.sh
 
@@ -370,7 +370,7 @@ $(gettext "To uninstall snap packages, deselect them and click") \"$(gettext "OK
     kept_snaps=$(zenity --list --checklist "${ZDEFAULTS[@]}" \
         --column='' --column="Snap" --column="Revision" \
         "${installed_snaps[@]}" --separator='\n' \
-        --text="$text" --cancel-label="Back" 2>/dev/null
+        --text="$text" --cancel-label="$(gettext "Back")" 2>/dev/null
     )
     if [[ $? -eq 1 ]]; then
         # User clicked [Back].
@@ -489,8 +489,8 @@ install_cores() {
             fi
 
             # Output to progress dialog and to $LOG.
-            echo "#Installing/updating snaps from:\n\t$snaps_dir\n\nInstalling $name..."
-            echo -en "Installing $name from offline source... " | tee -a "$LOG"
+            echo "#$(gettext "Installing/updating snaps from:")\n\t$snaps_dir\n\n$(gettext "Installing") $name..."
+            echo -en "$(gettext "Installing") $name $(gettext "from offline source")... " | tee -a "$LOG"
 
             # Get arch subfolder for snap.
             arch=$(get_snap_arch "${name}_${rev_avail}" "$snaps_dir")

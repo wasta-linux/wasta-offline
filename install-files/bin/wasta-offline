@@ -88,7 +88,7 @@ BASE=$(realpath $(dirname $0))
 
 # Variables and script needed for localization.
 export TEXTDOMAINDIR=/usr/share/locale
-export TEXTDOMAINDIR=~/.local/share/locale # for user test installation
+#export TEXTDOMAINDIR=~/.local/share/locale # for user test installation
 export TEXTDOMAIN=wasta-offline
 . gettext.sh
 
