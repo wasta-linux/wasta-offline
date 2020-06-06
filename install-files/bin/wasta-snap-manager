@@ -768,18 +768,13 @@ window_settings() {
     r_kept_sug=2
 
     # Get current settings.
-    pat='s/.*dev\s([0-9a-zA-Z]*).*/\1/'
-    all_inet_devices=$(
-        ip addr show | grep -Eo '[a-z0-9]{6,}:' | grep -Eo '[a-z0-9]{6,}'
-    )
-
-    inet_connection=$(
-        for d in ${all_inet_devices[@]}; do
-            c=$(nmcli -t -f GENERAL.CONNECTION --mode tabular dev show "$d")
-            [[ $c ]] && echo "$c"
-        done
-    )
-
+    # ---------------------------------
+    # Get metered status of current internet connection.
+    inet_device=$(ip route | grep 'default via' | awk '{print $5}')
+    inet_connection=''
+    if [[ $inet_device ]]; then
+        inet_connection=$(nmcli -t -f GENERAL.CONNECTION --mode tabular dev show "$inet_device")
+    fi
     if [[ $inet_connection ]]; then
         metered_status=$(
             LANG=C nmcli -f connection.metered connection show "$inet_connection" \
