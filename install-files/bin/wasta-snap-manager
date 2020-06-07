@@ -701,7 +701,11 @@ $(gettext "To <b>Add/Update</b> snap packages, first choose your preferred sourc
     if [[ $ec -eq 1 ]] && [[ $sources ]]; then
         if [[ $sources == $remove_text ]]; then
             # User clicked [Remove...].
-            window_remove_snaps
+            if [[ -x /snap/bin/snap-store ]]; then
+                /snap/bin/snap-store --mode=installed 2>/dev/null
+            else
+                window_remove_snaps
+            fi
         elif [[ $sources == $settings_text ]]; then
             # User clicked [Settings...].
             if [[ -x /usr/bin/snap-settings ]]; then
