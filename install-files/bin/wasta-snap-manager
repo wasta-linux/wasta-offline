@@ -704,7 +704,11 @@ $(gettext "To <b>Add/Update</b> snap packages, first choose your preferred sourc
             window_remove_snaps
         elif [[ $sources == $settings_text ]]; then
             # User clicked [Settings...].
-            window_settings
+            if [[ -x /usr/bin/snap-settings ]]; then
+                /usr/bin/snap-settings
+            else
+                window_settings
+            fi
         fi
     elif [[ $ec -eq 1 ]]; then
         # User clicked [Quit] or the [x].
