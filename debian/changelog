@@ -1,3 +1,9 @@
+wasta-offline (2.1.10) focal; urgency=medium
+
+  * fix fatal error if no snap/all or snap/$arch folders exist
+
+ -- Justin Luth <jluth@mail.com>  Wed, 27 May 2020 10:03:56 +0300
+
 wasta-offline (2.1.9) bionic; urgency=medium
 
   * use unshare instead of nmcli to avoid network use
