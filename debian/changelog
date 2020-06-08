@@ -1,3 +1,9 @@
+wasta-offline (2.2.0) bionic; urgency=medium
+
+  * merged localization updates from n8marti
+
+ -- Rik Shaw <rikshaw76@gmail.com>  Mon, 08 Jun 2020 13:04:22 -0500
+
 wasta-offline (2.1.10) focal; urgency=medium
 
   * fix fatal error if no snap/all or snap/$arch folders exist
