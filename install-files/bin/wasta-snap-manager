@@ -397,7 +397,7 @@ remove_snaps() {
     # Remove snaps.
     for name in ${to_remove[@]}; do
         # Output to progress dialog.
-        echo "#Removing snaps.\n\n\nRemoving $name..."
+        echo "$(gettext "#Removing snaps.\n\n\nRemoving") $name..."
         echo -en "Removing $name... " | tee -a "$LOG"
 
         pkexec "$AS_ROOT" snap remove "$name"
