@@ -4,5 +4,4 @@ install-files/icons                 usr/share
 install-files/locale                usr/share
 install-files/actions               usr/share/polkit-1
 install-files/wasta-offline/po      usr/share/wasta-offline
-install-files/wasta-snap-manager/po usr/share/wasta-snap-manager
 install-files/wasta-offline.rules   lib/udev/rules.d

@@ -1,3 +1,9 @@
+wasta-offline (2.2.1) focal; urgency=medium
+
+  * removed wasta-snap-manager and associated files and entries
+
+ -- Nate Marti <nate_marti@sil.org>  Fri, 17 Jul 2020 10:39:09 +0100
+
 wasta-offline (2.2.0) bionic; urgency=medium
 
   * merged localization updates from n8marti

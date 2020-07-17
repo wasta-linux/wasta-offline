@@ -8,7 +8,7 @@ Homepage: https://github.com/wasta-linux/wasta-offline
 
 Package: wasta-offline
 Architecture: all
-Depends: at, policykit-1, rsync, squashfs-tools, ${shlibs:Depends}, ${misc:Depends}
+Depends: at, policykit-1, rsync, ${shlibs:Depends}, ${misc:Depends}
 Suggests: wasta-offline-setup
 Description: Offline software updates and installs.
  Wasta-Offline modifies the current computer's "software sources" (or apt
@@ -41,8 +41,3 @@ Description: Offline software updates and installs.
  After all Wasta-Offline local software updates and installs are complete,
  when the GUI window is closed, the current computer's "software sources"
  (apt software repositories) are restored to their original settings.
- .
- Wasta-Snap-Manager is included to manage snap update settings, update
- snap apps online or offline, and install snaps offline from the local cache
- repository. It runs automatically with Wasta-Offline to update snaps, and it
- can also be launched separately to use the other features.
