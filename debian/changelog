@@ -1,3 +1,9 @@
+wasta-offline (2.2.1.1) UNRELEASED; urgency=medium
+
+  * recognize Cinnamon Mint's 20.1 ulyssa and 20.2 uma
+
+ -- Justin Luth <jluth@mail.com>  Tue, 03 Aug 2021 08:40:00 +0200
+
 wasta-offline (2.2.1) focal; urgency=medium
 
   * removed wasta-snap-manager and associated files and entries
