@@ -678,7 +678,9 @@ if [ "${MIRROR_BASE}" ]; then
     while read -r LINE
     do
         echo         | tee -a "$LOG"
-        echo "$(date +%T) $(eval_gettext "Processing wasta-offline \${MIRROR_BASE} repository:")" \
+        # A space is needed before the following date command to avoid zenity
+        #   misinterpreting the output as a percentage of progress and closing early.
+        echo " $(date +%T) $(eval_gettext "Processing wasta-offline \${MIRROR_BASE} repository:")" \
                      | tee -a "$LOG"
         echo "$LINE" | tee -a "$LOG"
 
