@@ -470,6 +470,11 @@ case "$SERIES" in
         REPO_SERIES="focal"
         MINT_SERIES="$SERIES"
     ;;
+    vanessa)
+        #LTS 22.04-based Mint 21.x
+        REPO_SERIES="jammy"
+        MINT_SERIES="$SERIES"
+    ;;
     *)
         # Not a Mint distribution, just go with what is reported
         REPO_SERIES=$SERIES
