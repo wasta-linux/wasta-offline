@@ -470,7 +470,7 @@ case "$SERIES" in
         REPO_SERIES="focal"
         MINT_SERIES="$SERIES"
     ;;
-    vanessa)
+    vanessa|vera)
         #LTS 22.04-based Mint 21.x
         REPO_SERIES="jammy"
         MINT_SERIES="$SERIES"
