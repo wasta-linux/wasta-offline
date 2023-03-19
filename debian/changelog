@@ -99,7 +99,7 @@ wasta-offline (2.1.2) bionic; urgency=medium
 
   * build failed. GPG key or changelog problems?
 
- -- Justin Luth <justin@JL-1804>  Tue, 26 Nov 2019 16:48:04 +0300
+ -- Justin Luth <jluth@mail.com>  Tue, 26 Nov 2019 16:48:04 +0300
 
 wasta-offline (2.1) bionic; urgency=medium
 
