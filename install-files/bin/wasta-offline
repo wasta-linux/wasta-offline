@@ -138,7 +138,13 @@ scriptExit () {
     PKEXEC_ERR=1
   fi
 
-  echo "
+  if [ "$REPO_SERIES" == "precise" ] \
+  || [ "$REPO_SERIES" == "trusty" ] \
+  || [ "$REPO_SERIES" == "xenial" ] \
+  || [ "$REPO_SERIES" == "bionic" ] \
+  || [ "$REPO_SERIES" == "focal" ] \
+  || [ "$REPO_SERIES" == "jammy" ]; then
+    echo "
 Hint: although theoretically unsafe, avoid the admin prompts with
 
 /etc/polkit-1/localauthority/50-local.d/org.wasta.apps.wasta-offline.pkla
@@ -149,6 +155,21 @@ Hint: although theoretically unsafe, avoid the admin prompts with
     ResultActive=yes
     ResultAny=yes
 " | tee -a "$LOG"
+  else # modern polkit > .105 only supports javascript .rules
+    #requires a systemctl restart polkit; logs to /var/log/auth.log
+    echo "
+Hint: although theoretically unsafe, avoid the admin prompts with
+
+chown :polkitd /etc/polkit-1/rules.d/org.wasta.apps.wasta-offline.rules
+------------------------------------------------------------
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.wasta.apps.wasta-offline"))
+    {
+        return polkit.Result.YES;
+    }
+});
+" | tee -a "$LOG"
+  fi
 
   echo "-----------------------------------------------------------" | tee -a "$LOG"
   echo $(date +%T) $HOST "wasta-offline complete"                    | tee -a "$LOG"
