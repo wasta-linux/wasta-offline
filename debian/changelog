@@ -1,3 +1,9 @@
+wasta-offline (2.3) noble; urgency=medium
+
+  * add support for Noble Numbat 24.04
+
+ -- Justin Luth <jluth@mail.com>  Thu, 16 Nov 2023 11:42:01 -0500
+
 wasta-offline (2.2.1.6) jammy; urgency=medium
 
   * recognize Cinnamon Mint's 21.2 victoria
