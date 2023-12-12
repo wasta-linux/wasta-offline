@@ -401,7 +401,7 @@ $(gettext "ONLY 'wasta-offline' folder")
 fi
 
 MODE=""
-MODE=$(zenity --list --title="$(gettext "wasta [Offline]")" --width=500 --height=350 \
+MODE=$(zenity --list --title="$(gettext "wasta [Offline]")" --width=500 --height=500 \
     --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
     --text="<big>$(gettext "Install or update local software from a <i>'wasta-offline'</i> folder.")</big>
 
