@@ -491,9 +491,14 @@ case "$SERIES" in
         REPO_SERIES="focal"
         MINT_SERIES="$SERIES"
     ;;
-    vanessa|vera|victoria)
+    vanessa|vera|victoria|virginia)
         #LTS 22.04-based Mint 21.x
         REPO_SERIES="jammy"
+        MINT_SERIES="$SERIES"
+    ;;
+    wilma)
+        #LTS 24.04-based Mint 22.x
+        REPO_SERIES="noble"
         MINT_SERIES="$SERIES"
     ;;
     *)

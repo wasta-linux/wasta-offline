@@ -1,3 +1,11 @@
+wasta-offline (2.3.1) noble; urgency=medium
+
+  * recognize Cinnamon Mint's 21.3 virginia
+  * recognize Cinnamon Mint's 22.0 wilma
+  * increase height of offline/Internet for Zenity 3.99
+
+ -- Justin Luth <jluth@mail.com>  Mon, 11 Dec 2023 20:19:36 -0500
+
 wasta-offline (2.3) noble; urgency=medium
 
   * add support for Noble Numbat 24.04
