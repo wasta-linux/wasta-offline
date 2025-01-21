@@ -1,3 +1,9 @@
+wasta-offline (2.4.0) noble; urgency=medium
+
+  * stop combining Linux Mint with Ubuntu
+
+ -- Justin Luth <jluth@mail.com>  Sat, 22 Feb 2025 08:23:47 -0500
+
 wasta-offline (2.3.2) noble; urgency=medium
 
   * recognize Cinnamon Mint's 22.1 xia

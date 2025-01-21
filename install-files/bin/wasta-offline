@@ -138,12 +138,12 @@ scriptExit () {
     PKEXEC_ERR=1
   fi
 
-  if [ "$REPO_SERIES" == "precise" ] \
-  || [ "$REPO_SERIES" == "trusty" ] \
-  || [ "$REPO_SERIES" == "xenial" ] \
-  || [ "$REPO_SERIES" == "bionic" ] \
-  || [ "$REPO_SERIES" == "focal" ] \
-  || [ "$REPO_SERIES" == "jammy" ]; then
+  if [ "$PPA_SERIES" == "precise" ] \
+  || [ "$PPA_SERIES" == "trusty" ] \
+  || [ "$PPA_SERIES" == "xenial" ] \
+  || [ "$PPA_SERIES" == "bionic" ] \
+  || [ "$PPA_SERIES" == "focal" ] \
+  || [ "$PPA_SERIES" == "jammy" ]; then
     echo "
 Hint: although theoretically unsafe, avoid the admin prompts with
 
@@ -293,7 +293,6 @@ cache to a 'wasta-offline' folder, instead use
 
     # get series:
     START_FOLDER=""
-    SERIES=$(lsb_release -sc)
 
     # first, look for wasta-offline folder under /media/$USER (12.10 and newer)
     # 2014-04-24 rik: $USER, $(logname), $(whoami), $(who) all not working when
@@ -448,69 +447,58 @@ if [[ -x /usr/bin/snap ]]; then
 fi
 
 # get series, load them up.
-SERIES=$(lsb_release -sc)
-case "$SERIES" in
+REPO_SERIES=$(lsb_release -sc)
+case "$REPO_SERIES" in
     maya)
         #LTS 12.04-based Mint 13
-        REPO_SERIES="precise"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="precise"
     ;;
 
     nadia)
-        REPO_SERIES="quantal"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="quantal"
     ;;
 
     olivia)
-        REPO_SERIES="raring"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="raring"
     ;;
 
     petra)
-        REPO_SERIES="saucy"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="saucy"
     ;;
 
     qiana|rebecca|rafaela|rosa)
         #LTS 14.04 based Mint 17.x
-        REPO_SERIES="trusty"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="trusty"
     ;;
     sarah|serena|sonya|sylvia)
         #LTS 16.04 based Mint 18.x
-        REPO_SERIES="xenial"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="xenial"
     ;;
     tara|tessa|tina|tricia)
         #LTS 18.04 based Mint 19.x
-        REPO_SERIES="bionic"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="bionic"
     ;;
     ulyana|ulyssa|uma|una)
         #LTS 20.04-based Mint 20.x
-        REPO_SERIES="focal"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="focal"
     ;;
     vanessa|vera|victoria|virginia)
         #LTS 22.04-based Mint 21.x
-        REPO_SERIES="jammy"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="jammy"
     ;;
     wilma|xia)
         #LTS 24.04-based Mint 22.x
-        REPO_SERIES="noble"
-        MINT_SERIES="$SERIES"
+        PPA_SERIES="noble"
     ;;
     *)
         # Not a Mint distribution, just go with what is reported
-        REPO_SERIES=$SERIES
-        MINT_SERIES=$SERIES
+        PPA_SERIES=$REPO_SERIES
     ;;
 esac
 
 echo | tee -a "$LOG"
-echo "Ubuntu Series Folder set to: $REPO_SERIES" | tee -a "$LOG"
-echo "Mint Series Folder set to: $MINT_SERIES" | tee -a "$LOG"
+echo "Series Folder set to: $REPO_SERIES" | tee -a "$LOG"
+echo "PPA Series Folder set to: $PPA_SERIES" | tee -a "$LOG"
 
 # get architecture:
 ARCH=$(uname -m)
@@ -672,10 +660,10 @@ if [ "${MIRROR_BASE}" ]; then
     TMPDIR=$(mktemp -d)
 
     GZIP_OPTION="dk --verbose"
-    [ "$REPO_SERIES" == "precise" ] || \
-    [ "$REPO_SERIES" == "quantal" ] || \
-    [ "$REPO_SERIES" == "raring" ]  || \
-    [ "$REPO_SERIES" == "saucy" ]      \
+    [ "$PPA_SERIES" == "precise" ] || \
+    [ "$PPA_SERIES" == "quantal" ] || \
+    [ "$PPA_SERIES" == "raring" ]  || \
+    [ "$PPA_SERIES" == "saucy" ]      \
         && GZIP_OPTION="d --verbose"
 
     # zenity progress dialog
@@ -692,8 +680,7 @@ if [ "${MIRROR_BASE}" ]; then
         -name "pool"  -type d -prune -o \
         -name ".temp" -type d -prune -o \
         -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES/*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; -o \
-        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; -o \
-        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$MINT_SERIES/*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages.gz" -execdir bash -c "[ -e Packages ] ||  gzip -${GZIP_OPTION} '{}' " \; \
       | tee -a "$LOG"
 
     echo "$(gettext "#Finding Packages files ...\n\n\n\n\n")"
@@ -701,8 +688,7 @@ if [ "${MIRROR_BASE}" ]; then
         -name "pool"  -type d -prune -o \
         -name ".temp" -type d -prune -o \
         -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES/*/$ARCH_FOLDER/Packages" -print -o \
-        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages" -print -o \
-        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$MINT_SERIES/*/$ARCH_FOLDER/Packages" -print > \
+        -iwholename "$WO_LOC/${MIRROR_BASE}/*/dists/$REPO_SERIES-*/$ARCH_FOLDER/Packages" -print > \
         "$TMPDIR/${MIRROR_BASE}.list"
 
     # load them in sources.list
