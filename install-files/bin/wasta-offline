@@ -486,7 +486,7 @@ case "$REPO_SERIES" in
         #LTS 22.04-based Mint 21.x
         PPA_SERIES="jammy"
     ;;
-    wilma|xia)
+    wilma|xia|zara)
         #LTS 24.04-based Mint 22.x
         PPA_SERIES="noble"
     ;;
