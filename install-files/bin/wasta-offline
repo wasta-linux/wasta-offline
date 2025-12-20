@@ -291,9 +291,6 @@ cache to a 'wasta-offline' folder, instead use
         scriptExit
     fi
 
-    # get series:
-    START_FOLDER=""
-
     # first, look for wasta-offline folder under /media/$USER (12.10 and newer)
     # 2014-04-24 rik: $USER, $(logname), $(whoami), $(who) all not working when
     #   launch with gksu.  So, just setting to /media/*/*/wasta-offline :-(
@@ -308,13 +305,13 @@ cache to a 'wasta-offline' folder, instead use
     if [ -z "$START_FOLDER" ]
     then
         # no wasta-offline, try /media/$USER (12.10 and newer)
-        START_FOLDER=$(ls -1d /media/$USER 2>/dev/null | head -1)
+        START_FOLDER=$(ls -1d /media/$USER/ 2>/dev/null | head -1)
     fi
 
     if [ -z "$START_FOLDER" ]
     then
         # no /media/$USER, try /media
-        START_FOLDER=$(ls -1d /media 2>/dev/null | head -1)
+        START_FOLDER=$(ls -1d /media/ 2>/dev/null | head -1)
     fi
 
    if [ -z "$START_FOLDER" ]
