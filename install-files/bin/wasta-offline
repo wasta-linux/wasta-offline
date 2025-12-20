@@ -298,8 +298,20 @@ cache to a 'wasta-offline' folder, instead use
 
     if [ -z "$START_FOLDER" ]
     then
+        # or for wasta-offline folder under /run/media/$USER/$USB/ (26.04 and newer)
+        START_FOLDER=$(ls -1d /run/media/*/*/wasta-offline 2>/dev/null | head -1)
+    fi
+
+    if [ -z "$START_FOLDER" ]
+    then
         # second, look for wasta-offline folder under /media (12.04 and older)
         START_FOLDER=$(ls -1d /media/*/wasta-offline 2>/dev/null | head -1)
+    fi
+
+    if [ -z "$START_FOLDER" ]
+    then
+        # no wasta-offline, try /run/media/$USER (26.04 and newer)
+        START_FOLDER=$(ls -1d /run/media/$USER/ 2>/dev/null | head -1)
     fi
 
     if [ -z "$START_FOLDER" ]

@@ -158,6 +158,13 @@ addOfflineApt () {
     exit 1
   fi
 
+  # -s: tests if the file exists and has a non-zero size.
+  # (sed didn't insert into a zero-sized file...)
+  if ! [ -s ${APT_SOURCES} ]; then
+    # re-create  empty  ${APT_SOURCES}
+    echo "# $LOG_DATE wasta-offline sources.list" > "${APT_SOURCES}"
+  fi
+
   APT_LINE="deb [trusted=yes] file:\"$WO_LOC/local-cache\" $REPO_SERIES/$ARCH_FOLDER/"
   sed -i -e "1i $APT_LINE"  "${APT_SOURCES}" | tee -a "$LOG"
   echo "$(grep /local-cache ${APT_SOURCES})" | tee -a "$LOG"

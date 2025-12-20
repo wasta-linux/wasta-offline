@@ -1,3 +1,12 @@
+wasta-offline (2.5.0) resolute; urgency=medium
+
+  * updates needed for resolute raccoon 26.04
+    * pkexec dependency instead of policykit-1 (depends on polkitd)
+    * USB media mounted under /run/media/$USER now
+    * /etc/apt/sources.list does not necessarily exist anymore
+
+ -- Justin Luth <jluth@mail.com>  Fri, 19 Dec 2025 19:41:43 -0500
+
 wasta-offline (2.4.2) UNRELEASED; urgency=medium
 
   * recognize Cinnamon Mint's 22.3 zena
