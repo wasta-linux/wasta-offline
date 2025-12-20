@@ -338,7 +338,8 @@ start folder: $START_FOLDER"
 wasta-offline location: $WO_LOC"
     else
         if [[ -z $FOLDER_SEL ]]; then
-            FOLDER_SEL="$(gettext "(none)")"
+            # user cancelled the folder selection: just exit
+            scriptExit
         fi
         zenity --error --no-wrap --height=200 \
           --title="$(gettext "wasta [Offline]: Exiting")" \
@@ -353,13 +354,7 @@ fi
 #If still don't have wasta-offline folder, exit
 if [[ -z "$WO_LOC" ]]
 then
-#    zenity --error --no-wrap --height=200 \
-#        --title="$(gettext "wasta [Offline]: Exiting")" \
-#        --window-icon=/usr/share/icons/hicolor/scalable/apps/wasta-offline.svg \
-#        --text "$(gettext "No <b>'wasta-offline'<b> folder has been set.\n
-#wasta [Offline] will now exit.")\n\n" 2>/dev/null
-    echo "No 'wasta-offline' folder has been set. Exiting.
-Justin, if you're reading this, then you win the prize!"
+    echo "No 'wasta-offline' folder has been set. Exiting."
     scriptExit
 fi
 
